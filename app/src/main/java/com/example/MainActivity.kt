@@ -45,6 +45,7 @@ import com.example.data.repository.AdRepository
 import com.example.data.repository.CeoDashboardRepository
 import com.example.data.repository.LeaderboardRepository
 import com.example.data.repository.NotificationRepository
+import com.example.data.repository.PreferencesNotificationStorage
 import com.example.data.repository.RewardRepository
 import com.example.data.repository.RewardsRepository
 import com.example.data.repository.SyncRepository
@@ -212,7 +213,7 @@ class MainActivity : ComponentActivity() {
         val transactionRepo = TransactionRepository(prefs, userRepo)
         val leaderboardRepo = LeaderboardRepository(userRepo, prefs)
         val ceoDashboardRepo = CeoDashboardRepository(userRepo)
-        val notificationRepo = NotificationRepository(prefs)
+        val notificationRepo = NotificationRepository(PreferencesNotificationStorage(prefs))
         val syncRepo = SyncRepository(prefs, userRepo, rewardRepo, transactionRepo, leaderboardRepo, notificationRepo)
         userRepo.attachRepositories(rewardRepo, transactionRepo, leaderboardRepo, notificationRepo, syncRepo)
         

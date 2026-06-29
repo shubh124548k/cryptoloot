@@ -115,11 +115,91 @@ data class LeaderboardState(
 
 data class NotificationItem(
     val id: String,
-    val type: String,
+    val type: String = NotificationType.GENERAL_INFORMATION.name,
     val title: String,
     val message: String,
     val timestamp: String,
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    val priority: NotificationPriority = NotificationPriority.MEDIUM,
+    val category: NotificationCategory = NotificationCategory.GENERAL,
+    val actionType: String = "INFO",
+    val expiresAt: String? = null,
+    val sourceRepository: String = "SYSTEM",
+    val severity: String = "INFO",
+    val notificationType: NotificationType = NotificationType.GENERAL_INFORMATION
+)
+
+data class NotificationSummary(
+    val unreadCount: Int = 0,
+    val latestNotification: NotificationItem? = null,
+    val recentActivitySummary: String = "No recent activity"
+)
+
+data class NotificationStats(
+    val totalNotifications: Int = 0,
+    val unreadNotifications: Int = 0,
+    val readNotifications: Int = 0,
+    val criticalNotifications: Int = 0,
+    val warnings: Int = 0,
+    val informationMessages: Int = 0,
+    val todaysNotifications: Int = 0,
+    val weeklyNotifications: Int = 0
+)
+
+data class UnreadCounter(
+    val count: Int = 0,
+    val hasUnread: Boolean = false
+)
+
+data class NotificationSettings(
+    val enabled: Boolean = true,
+    val quietHours: Boolean = false,
+    val maxStoredNotifications: Int = 100
+)
+
+enum class NotificationCategory {
+    GENERAL,
+    REWARD,
+    WALLET,
+    REDEEM,
+    LEADERBOARD,
+    TRUST,
+    BUDGET,
+    FRAUD,
+    SYSTEM
+}
+
+enum class NotificationPriority {
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
+}
+
+enum class NotificationType {
+    REWARD_EARNED,
+    COINS_ADDED,
+    COINS_REDEEMED,
+    REDEEM_APPROVED,
+    REDEEM_REJECTED,
+    LEADERBOARD_PROMOTION,
+    LEADERBOARD_DEMOTION,
+    TRUST_SCORE_INCREASED,
+    TRUST_SCORE_DECREASED,
+    BUDGET_WARNING,
+    FRAUD_WARNING,
+    DAILY_REWARD,
+    WEEKLY_LEAGUE_RESET,
+    SYSTEM_MAINTENANCE,
+    GENERAL_INFORMATION
+}
+
+data class NotificationSnapshot(
+    val items: List<NotificationItem> = emptyList(),
+    val stats: NotificationStats = NotificationStats(),
+    val unreadCounter: UnreadCounter = UnreadCounter(),
+    val summary: NotificationSummary = NotificationSummary(),
+    val settings: NotificationSettings = NotificationSettings()
 )
 
 data class SyncQueueItem(
