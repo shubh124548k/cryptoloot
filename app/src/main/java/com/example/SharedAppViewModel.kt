@@ -17,17 +17,16 @@ class SharedAppViewModel(private val userRepo: UserRepository) : ViewModel() {
     private var countdownJob: Job? = null
 
     fun setInitialCountdown(seconds: Int) {
+        cancelCountdown()
         if (seconds > 0) {
             _dailyResetTimerState.value = seconds
             startCountdown()
         } else {
             _dailyResetTimerState.value = 0
-            countdownJob?.cancel()
         }
     }
 
     private fun startCountdown() {
-        countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
             while (_dailyResetTimerState.value > 0) {
                 delay(1000L)
@@ -37,6 +36,16 @@ class SharedAppViewModel(private val userRepo: UserRepository) : ViewModel() {
                 }
             }
         }
+    }
+
+    private fun cancelCountdown() {
+        countdownJob?.cancel()
+        countdownJob = null
+    }
+
+    override fun onCleared() {
+        cancelCountdown()
+        super.onCleared()
     }
 
     private suspend fun refreshHandshake() {

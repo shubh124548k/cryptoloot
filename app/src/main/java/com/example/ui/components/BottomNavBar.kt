@@ -93,6 +93,7 @@ fun BottomNavBar(
                 
                 Column(
                     modifier = Modifier
+                        .scrollGestureSafe()
                         .clip(RoundedCornerShape(12.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },

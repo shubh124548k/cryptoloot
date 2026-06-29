@@ -66,6 +66,7 @@ fun CoinCounter(
         CoinCounterSize.SMALL -> {
             Row(
                 modifier = modifier
+                    .scrollGestureSafe()
                     .shadow(
                         elevation = 5.dp,
                         shape = CircleShape,
@@ -101,6 +102,7 @@ fun CoinCounter(
         CoinCounterSize.MEDIUM -> {
             Row(
                 modifier = modifier
+                    .scrollGestureSafe()
                     .shadow(
                         elevation = 9.dp,
                         shape = CircleShape,
@@ -142,6 +144,7 @@ fun CoinCounter(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
+                        .scrollGestureSafe()
                         .size(120.dp)
                         .shadow(
                             elevation = (16 * coinGlowAlpha).dp,

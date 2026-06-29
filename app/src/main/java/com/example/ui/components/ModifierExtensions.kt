@@ -5,6 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -15,6 +16,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.launch
+
+fun Modifier.scrollGestureSafe(): Modifier = composed {
+    pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            waitForUpOrCancellation()
+        }
+    }
+}
 
 fun Modifier.threeDTiltEffect(): Modifier = composed {
     val scope = rememberCoroutineScope()
@@ -48,7 +58,6 @@ fun Modifier.threeDTiltEffect(): Modifier = composed {
                     updateTilt(down.position)
                     
                     drag(down.id) { change ->
-                        change.consume()
                         updateTilt(change.position)
                     }
                 }

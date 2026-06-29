@@ -64,6 +64,7 @@ fun NeonCard(
     
     Box(
         modifier = modifier
+            .scrollGestureSafe()
             .offset(y = floatOffset.dp)
             .background(
                 brush = Brush.linearGradient(

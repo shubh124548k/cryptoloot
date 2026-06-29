@@ -100,6 +100,7 @@ fun NeonButton(
     
     Box(
         modifier = modifierWithClicks
+            .scrollGestureSafe()
             .shadow(
                 elevation = shadowElevation,
                 shape = buttonShape,
