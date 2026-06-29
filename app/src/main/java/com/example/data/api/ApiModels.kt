@@ -82,7 +82,18 @@ data class RedemptionHistoryItem(
     val payout_value: Float,
     val status: String,
     val code_value: String?,
-    val created_at: String
+    val created_at: String,
+    val transaction_type: String = "SYSTEM",
+    val description: String = "",
+    val queue_id: String? = null,
+    val coins_before: Int = 0,
+    val coins_after: Int = 0,
+    val completed_at: String? = null,
+    val device_id: String? = null,
+    val server_synced: Boolean = false,
+    val version_number: Int = 1,
+    val reward_name: String? = null,
+    val cash_amount: Float? = null
 )
 
 data class DeviceHandshakeRequest(

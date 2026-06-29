@@ -48,6 +48,11 @@ fun ProfileScreen(
     rejectedRedeems: Int,
     lastRedeemDate: String?,
     totalLifetimeRedeems: Int,
+    totalTransactions: Int,
+    coinsEarnedLifetime: Int,
+    coinsRedeemedLifetime: Int,
+    lastTransactionTime: String?,
+    averageCoinsPerReward: Float,
     onRecoverUid: (String, (Boolean, String) -> Unit) -> Unit,
     onResetApp: () -> Unit,
     modifier: Modifier = Modifier
@@ -383,6 +388,65 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Last Redeem: ${lastRedeemDate ?: "N/A"}",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = InterFamily
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "TRANSACTION STATISTICS",
+                color = NeonCyan,
+                fontSize = 12.sp,
+                fontFamily = RajdhaniFamily,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.1.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            NeonCard(
+                glowColor = NeonPurple,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatMiniCard(
+                            icon = Icons.Default.ReceiptLong,
+                            iconColor = NeonCyan,
+                            value = "$totalTransactions",
+                            label = "Total Txns",
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatMiniCard(
+                            icon = Icons.Default.ArrowUpward,
+                            iconColor = NeonGreen,
+                            value = "$coinsEarnedLifetime",
+                            label = "Coins Earned",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        StatMiniCard(
+                            icon = Icons.Default.ArrowDownward,
+                            iconColor = NeonPink,
+                            value = "$coinsRedeemedLifetime",
+                            label = "Coins Redeemed",
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatMiniCard(
+                            icon = Icons.Default.TrendingUp,
+                            iconColor = NeonYellow,
+                            value = String.format("%.1f", averageCoinsPerReward),
+                            label = "Avg / Reward",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Last Transaction: ${lastTransactionTime ?: "N/A"}",
                         color = TextSecondary,
                         fontSize = 11.sp,
                         fontFamily = InterFamily

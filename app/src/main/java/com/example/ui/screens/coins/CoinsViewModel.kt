@@ -58,10 +58,21 @@ class CoinsViewModel(
                         RedemptionHistoryItem(
                             request_id = tx.id.filter { it.isDigit() }.toIntOrNull() ?: 0,
                             coin_cost = tx.amount,
-                            payout_value = 0f,
+                            payout_value = tx.cashAmount ?: tx.rewardAmount?.toFloat() ?: 0f,
                             status = tx.status,
                             code_value = null,
-                            created_at = tx.timestamp
+                            created_at = tx.timestamp,
+                            transaction_type = tx.transactionType.name,
+                            description = tx.description.ifEmpty { tx.message.orEmpty() },
+                            queue_id = tx.queueId,
+                            coins_before = tx.coinsBefore,
+                            coins_after = tx.coinsAfter,
+                            completed_at = tx.completedTimestamp,
+                            device_id = tx.deviceId,
+                            server_synced = tx.serverSyncFlag,
+                            version_number = tx.versionNumber,
+                            reward_name = tx.rewardPack ?: tx.rewardName,
+                            cash_amount = tx.cashAmount ?: tx.rewardAmount?.toFloat()
                         )
                     },
                     rewardPacks = RewardPackCatalog.fromBalance(snapshot.coinBalance),
@@ -98,13 +109,10 @@ class CoinsViewModel(
         _uiState.update { it.copy(coinBalance = userRepo.getLocalCoins(), isLoading = true) }
         viewModelScope.launch {
             try {
-                val history = withTimeoutOrNull(8000L) { rewardsRepo.getRedemptionHistory() }
+                withTimeoutOrNull(8000L) { rewardsRepo.getRedemptionHistory() }
+                userRepo.refreshFromPreferences()
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        coinBalance = userRepo.getLocalCoins(),
-                        historyList = history ?: emptyList()
-                    )
+                    it.copy(isLoading = false)
                 }
             } catch (e: TimeoutCancellationException) {
                 _uiState.update {

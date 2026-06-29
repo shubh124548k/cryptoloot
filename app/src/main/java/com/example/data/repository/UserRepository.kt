@@ -8,11 +8,9 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -263,6 +261,10 @@ class UserRepository(
         refreshFromPreferences()
     }
 
+    fun recordTransaction(record: TransactionRecord) {
+        transactionRepository?.recordTransaction(record) ?: addTransaction(record)
+    }
+
     fun deductCoinsOffline(amount: Int) {
         prefs.coinBalance = (prefs.coinBalance - amount).coerceAtLeast(0)
         refreshFromPreferences()
@@ -276,43 +278,39 @@ class UserRepository(
         prefs.trustScore = response.trust_score
         prefs.totalAdsWatched = (prefs.totalAdsWatched + 1).coerceAtLeast(0)
         prefs.totalCoinsEarned = (prefs.totalCoinsEarned + response.coins_earned).coerceAtLeast(0)
-        transactionRepository?.recordTransaction(
+        recordTransaction(
             TransactionRecord(
                 id = "txn-${System.currentTimeMillis()}",
-                type = "coins_earned",
+                userUid = getMasterUid(),
+                username = prefs.displayName ?: "Krypton_Warrior",
+                transactionType = TransactionType.WATCH_REWARD,
+                type = TransactionType.WATCH_REWARD.name,
+                coinsBefore = previousBalance,
                 amount = response.coins_earned,
+                coinsChanged = response.coins_earned,
+                coinsAfter = prefs.coinBalance,
                 status = "COMPLETED",
+                description = "Coins earned from rewarded ad",
                 timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
+                completedTimestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
+                deviceId = prefs.deviceId,
+                serverSyncFlag = false,
+                versionNumber = 1,
                 message = "Coins earned from rewarded ad",
                 previousBalance = previousBalance,
                 currentBalance = prefs.coinBalance,
-                description = "Coins earned from rewarded ad",
-                action = "coins_earned"
+                legacyDescription = "Coins earned from rewarded ad"
             )
         )
         refreshFromPreferences()
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun applyRedemptionSuccess(requestId: Int, coins: Int, payoutValue: Float, status: String) {
         val previousBalance = prefs.coinBalance
         val nextBalance = (prefs.coinBalance - coins).coerceAtLeast(0)
         prefs.coinBalance = nextBalance
         prefs.successfulRedeems = (prefs.successfulRedeems + 1).coerceAtLeast(0)
-        transactionRepository?.recordTransaction(
-            TransactionRecord(
-                id = "req-$requestId",
-                type = "redeem",
-                amount = coins,
-                status = status,
-                timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
-                message = "Redeem request #$requestId submitted",
-                rewardAmount = payoutValue.toInt(),
-                previousBalance = previousBalance,
-                currentBalance = prefs.coinBalance,
-                description = "Reward redeemed for ${coins} coins",
-                action = "reward_redeemed"
-            )
-        )
         refreshFromPreferences()
     }
 
@@ -427,6 +425,7 @@ class UserRepository(
     }
 
     private fun emitSnapshot(handshake: HandshakeResponse?) {
+        val transactions = currentTransactions()
         val snapshot = AppSnapshot(
             username = prefs.displayName ?: "Krypton_Warrior",
             userUid = getMasterUid(),
@@ -434,9 +433,10 @@ class UserRepository(
             totalAdsWatched = prefs.totalAdsWatched,
             dailyAdsWatched = prefs.adsWatchedToday,
             successfulRedeems = prefs.successfulRedeems,
-            transactionHistory = readTransactions(),
+            transactionHistory = transactions,
             redeemRequests = readRedeemRequests(),
             redeemStats = buildRedeemQueueStats(readRedeemQueue()),
+            transactionStats = buildTransactionStatistics(transactions),
             trustScore = prefs.trustScore,
             totalCoinsEarned = prefs.totalCoinsEarned,
             notificationCount = prefs.notificationCount,
@@ -486,6 +486,41 @@ class UserRepository(
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    private fun currentTransactions(): List<TransactionRecord> {
+        return transactionRepository?.getTransactionsSnapshot() ?: readTransactions()
+    }
+
+    private fun buildTransactionStatistics(records: List<TransactionRecord>): TransactionStatistics {
+        val ordered = records.sortedByDescending { it.timestamp }
+        val rewardTransactions = records.filter {
+            it.transactionType == TransactionType.WATCH_REWARD || it.transactionType == TransactionType.COIN_BONUS
+        }
+        val redeemTransactions = records.filter {
+            it.transactionType == TransactionType.REDEEM_REQUEST ||
+                it.transactionType == TransactionType.REDEEM_PROCESSING ||
+                it.transactionType == TransactionType.REDEEM_APPROVED ||
+                it.transactionType == TransactionType.REDEEM_REJECTED ||
+                it.transactionType == TransactionType.QUEUE_COMPLETED
+        }.distinctBy { it.queueId ?: it.id }
+        val coinsEarned = rewardTransactions.sumOf { it.coinsChanged.coerceAtLeast(0) }
+        val coinsRedeemed = redeemTransactions.sumOf { (it.coinsBefore - it.coinsAfter).coerceAtLeast(0) }
+        val averageReward = if (rewardTransactions.isNotEmpty()) coinsEarned.toFloat() / rewardTransactions.size.toFloat() else 0f
+        val lastRedeem = redeemTransactions.firstOrNull()
+        return TransactionStatistics(
+            totalTransactions = records.size,
+            coinsEarnedLifetime = coinsEarned,
+            coinsRedeemedLifetime = coinsRedeemed,
+            lastTransactionTime = ordered.firstOrNull()?.timestamp,
+            lastRedeemTime = lastRedeem?.completedTimestamp ?: lastRedeem?.timestamp,
+            averageCoinsPerReward = averageReward,
+            rewardTransactions = rewardTransactions.size,
+            redeemTransactions = redeemTransactions.size,
+            approvalTransactions = records.count { it.transactionType == TransactionType.REDEEM_APPROVED },
+            rejectedTransactions = records.count { it.transactionType == TransactionType.REDEEM_REJECTED },
+            systemTransactions = records.count { it.transactionType == TransactionType.SYSTEM }
+        )
     }
 
     private fun buildRedeemQueueStats(queue: List<RedeemQueueEntry>): RedeemQueueStats {

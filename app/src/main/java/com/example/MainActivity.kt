@@ -323,6 +323,11 @@ class MainActivity : ComponentActivity() {
                                             rejectedRedeems = appState.redeemStats.rejectedCount,
                                             lastRedeemDate = appState.redeemStats.lastRedeemAt,
                                             totalLifetimeRedeems = appState.redeemStats.totalLifetimeRedeems,
+                                            totalTransactions = appState.transactionStats.totalTransactions,
+                                            coinsEarnedLifetime = appState.transactionStats.coinsEarnedLifetime,
+                                            coinsRedeemedLifetime = appState.transactionStats.coinsRedeemedLifetime,
+                                            lastTransactionTime = appState.transactionStats.lastTransactionTime,
+                                            averageCoinsPerReward = appState.transactionStats.averageCoinsPerReward,
                                             onRecoverUid = { pastedUid, onResult ->
                                                 coroutineScope.launch {
                                                     val response = userRepo.performUidRecovery(pastedUid)

@@ -16,8 +16,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Paid
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -177,20 +182,42 @@ fun CoinsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(
-                                    text = "Request #${item.request_id}",
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontFamily = JetBrainsMonoFamily,
-                                    fontWeight = FontWeight.Bold
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                val transactionIcon = when (item.transaction_type) {
+                                    "WATCH_REWARD", "COIN_BONUS" -> Icons.Default.Paid
+                                    "REDEEM_REQUEST", "REDEEM_PROCESSING" -> Icons.Default.HourglassTop
+                                    "REDEEM_APPROVED", "QUEUE_COMPLETED" -> Icons.Default.CheckCircle
+                                    "REDEEM_REJECTED" -> Icons.Default.Cancel
+                                    else -> Icons.Default.SwapHoriz
+                                }
+                                Icon(
+                                    imageVector = transactionIcon,
+                                    contentDescription = item.transaction_type,
+                                    tint = when (item.transaction_type) {
+                                        "WATCH_REWARD", "COIN_BONUS" -> NeonGreen
+                                        "REDEEM_REQUEST", "REDEEM_PROCESSING" -> NeonYellow
+                                        "REDEEM_APPROVED", "QUEUE_COMPLETED" -> NeonCyan
+                                        "REDEEM_REJECTED" -> NeonRed
+                                        else -> TextSecondary
+                                    },
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Text(
-                                    text = "${item.coin_cost} Coins → ₹${String.format("%.2f", item.payout_value)}",
-                                    color = TextSecondary,
-                                    fontSize = 13.sp,
-                                    fontFamily = InterFamily
-                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Request #${item.request_id}",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${item.transaction_type} • ${item.coin_cost} Coins → ₹${String.format("%.2f", item.payout_value)}",
+                                        color = TextSecondary,
+                                        fontSize = 13.sp,
+                                        fontFamily = InterFamily
+                                    )
+                                }
                             }
                             
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -237,6 +264,39 @@ fun CoinsScreen(
                                     fontSize = 12.sp,
                                     fontFamily = InterFamily
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Type: ${item.transaction_type}",
+                                    color = NeonCyan,
+                                    fontSize = 12.sp,
+                                    fontFamily = RajdhaniFamily,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Coins: ${item.coins_before} → ${item.coins_after}",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                    fontFamily = InterFamily
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Description: ${item.description.ifEmpty { "No description available." }}",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp,
+                                    fontFamily = InterFamily,
+                                    lineHeight = 16.sp
+                                )
+                                if (item.queue_id != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Queue ID: ${item.queue_id}",
+                                        color = NeonCyan,
+                                        fontSize = 12.sp,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 if (item.status == "COMPLETED" && item.code_value != null) {
                                     Text(

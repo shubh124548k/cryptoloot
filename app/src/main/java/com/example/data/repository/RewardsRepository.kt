@@ -98,6 +98,68 @@ class RewardsRepository(
             val previousBalance = currentBalance
 
             userRepo.applyRedemptionSuccess(requestId, coins, payout, "PENDING")
+            userRepo.recordTransaction(
+                TransactionRecord(
+                    id = "req-$requestId-request",
+                    userUid = userRepo.getCurrentSnapshot().userUid.ifEmpty { prefs.masterUid ?: deviceId },
+                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
+                    transactionType = TransactionType.REDEEM_REQUEST,
+                    type = TransactionType.REDEEM_REQUEST.name,
+                    coinsBefore = previousBalance,
+                    amount = coins,
+                    coinsChanged = -coins,
+                    coinsAfter = prefs.coinBalance,
+                    rewardPack = pack.name,
+                    cashAmount = payout,
+                    queueId = requestUuid,
+                    status = "QUEUED",
+                    description = "Redeem request submitted for ${pack.name}",
+                    timestamp = now,
+                    completedTimestamp = null,
+                    deviceId = deviceId,
+                    serverSyncFlag = false,
+                    versionNumber = 1,
+                    message = "Redeem request submitted for ${pack.name}",
+                    rewardName = pack.name,
+                    rewardAmount = pack.rewardAmount,
+                    packId = pack.id,
+                    updatedAt = now,
+                    previousBalance = previousBalance,
+                    currentBalance = prefs.coinBalance,
+                    legacyDescription = "Redeem request submitted for ${pack.name}"
+                )
+            )
+            userRepo.recordTransaction(
+                TransactionRecord(
+                    id = "req-$requestId-processing",
+                    userUid = userRepo.getCurrentSnapshot().userUid.ifEmpty { prefs.masterUid ?: deviceId },
+                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
+                    transactionType = TransactionType.REDEEM_PROCESSING,
+                    type = TransactionType.REDEEM_PROCESSING.name,
+                    coinsBefore = previousBalance,
+                    amount = coins,
+                    coinsChanged = -coins,
+                    coinsAfter = prefs.coinBalance,
+                    rewardPack = pack.name,
+                    cashAmount = payout,
+                    queueId = requestUuid,
+                    status = "UNDER REVIEW",
+                    description = "Redeem request is being processed for ${pack.name}",
+                    timestamp = now,
+                    completedTimestamp = null,
+                    deviceId = deviceId,
+                    serverSyncFlag = false,
+                    versionNumber = 1,
+                    message = "Redeem request is being processed",
+                    rewardName = pack.name,
+                    rewardAmount = pack.rewardAmount,
+                    packId = pack.id,
+                    updatedAt = now,
+                    previousBalance = previousBalance,
+                    currentBalance = prefs.coinBalance,
+                    legacyDescription = "Redeem request is being processed for ${pack.name}"
+                )
+            )
             userRepo.addRedeemRequest(
                 RedeemRequestRecord(
                     id = requestUuid,

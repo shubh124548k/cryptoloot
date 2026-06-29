@@ -10,6 +10,7 @@ data class AppSnapshot(
     val transactionHistory: List<TransactionRecord> = emptyList(),
     val redeemRequests: List<RedeemRequestRecord> = emptyList(),
     val redeemStats: RedeemQueueStats = RedeemQueueStats(),
+    val transactionStats: TransactionStatistics = TransactionStatistics(),
     val trustScore: Int = 100,
     val totalCoinsEarned: Int = 0,
     val notificationCount: Int = 0,
@@ -27,10 +28,24 @@ data class AppSnapshot(
 
 data class TransactionRecord(
     val id: String,
+    val userUid: String = "",
+    val username: String = "Krypton_Warrior",
+    val transactionType: TransactionType = TransactionType.SYSTEM,
     val type: String,
+    val coinsBefore: Int = 0,
     val amount: Int,
+    val coinsChanged: Int = amount,
+    val coinsAfter: Int = 0,
+    val rewardPack: String? = null,
+    val cashAmount: Float? = null,
+    val queueId: String? = null,
     val status: String,
+    val description: String = "",
     val timestamp: String,
+    val completedTimestamp: String? = null,
+    val deviceId: String? = null,
+    val serverSyncFlag: Boolean = false,
+    val versionNumber: Int = 1,
     val message: String? = null,
     val rewardName: String? = null,
     val rewardAmount: Int? = null,
@@ -39,7 +54,7 @@ data class TransactionRecord(
     val action: String = type,
     val previousBalance: Int? = null,
     val currentBalance: Int? = null,
-    val description: String? = null
+    val legacyDescription: String? = null
 )
 
 data class RedeemRequestRecord(
@@ -72,3 +87,38 @@ data class RedeemQueueStats(
     val activeStatus: String? = null,
     val estimatedWaitText: String? = null
 )
+
+data class TransactionStatistics(
+    val totalTransactions: Int = 0,
+    val coinsEarnedLifetime: Int = 0,
+    val coinsRedeemedLifetime: Int = 0,
+    val lastTransactionTime: String? = null,
+    val lastRedeemTime: String? = null,
+    val averageCoinsPerReward: Float = 0f,
+    val rewardTransactions: Int = 0,
+    val redeemTransactions: Int = 0,
+    val approvalTransactions: Int = 0,
+    val rejectedTransactions: Int = 0,
+    val systemTransactions: Int = 0
+)
+
+enum class TransactionType {
+    WATCH_REWARD,
+    COIN_BONUS,
+    REDEEM_REQUEST,
+    REDEEM_PROCESSING,
+    REDEEM_APPROVED,
+    REDEEM_REJECTED,
+    ADMIN_ADJUSTMENT,
+    QUEUE_COMPLETED,
+    SYSTEM
+}
+
+enum class TransactionFilter {
+    ALL,
+    REWARDS,
+    REDEEMS,
+    APPROVALS,
+    REJECTED,
+    SYSTEM
+}
