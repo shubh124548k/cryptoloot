@@ -165,3 +165,87 @@ data class RedeemQueueState(
     val lastRedeemAt: String? = null,
     val totalLifetimeRedeems: Int = 0
 )
+
+data class DashboardStats(
+    val totalUsers: Int = 0,
+    val activeUsers: Int = 0,
+    val totalCoinsIssued: Int = 0,
+    val totalCoinsRedeemed: Int = 0,
+    val outstandingCoins: Int = 0,
+    val todaysCoins: Int = 0,
+    val todaysRedeems: Int = 0,
+    val todaysRevenue: Float = 0f,
+    val lifetimeRevenue: Float = 0f,
+    val averageCoinsPerUser: Float = 0f,
+    val averageRedeemsPerUser: Float = 0f,
+    val trustDistribution: Map<String, Int> = emptyMap(),
+    val leaderboardDistribution: Map<String, Int> = emptyMap(),
+    val dailyActivity: List<DailyActivityPoint> = emptyList()
+)
+
+data class DailyActivityPoint(
+    val day: String = "",
+    val activityCount: Int = 0,
+    val coinVolume: Int = 0
+)
+
+data class RevenueSummary(
+    val todaysRevenue: Float = 0f,
+    val lifetimeRevenue: Float = 0f,
+    val averageRevenuePerUser: Float = 0f,
+    val projectedMonthlyRevenue: Float = 0f
+)
+
+data class CoinEconomySummary(
+    val totalCoinsIssued: Int = 0,
+    val totalCoinsRedeemed: Int = 0,
+    val outstandingCoins: Int = 0,
+    val balanceInCirculation: Int = 0,
+    val averageCoinsPerUser: Float = 0f
+)
+
+data class RedemptionSummary(
+    val totalRedeems: Int = 0,
+    val todaysRedeems: Int = 0,
+    val successfulRedeems: Int = 0,
+    val pendingRedeems: Int = 0,
+    val averageRedeemsPerUser: Float = 0f
+)
+
+data class LeaderboardSummary(
+    val currentRank: Int = 0,
+    val currentLeague: String = "UNRANKED",
+    val leaderboardScore: Int = 0,
+    val leaderboardDistribution: Map<String, Int> = emptyMap()
+)
+
+data class TrustSummary(
+    val averageTrustScore: Float = 0f,
+    val trustDistribution: Map<String, Int> = emptyMap(),
+    val activeTrustBand: String = "LOW"
+)
+
+data class AdPerformanceSummary(
+    val totalAdsWatched: Int = 0,
+    val adsWatchedToday: Int = 0,
+    val adRewardCoins: Int = 0,
+    val averageCoinsPerAd: Float = 0f,
+    val lastAdAt: String? = null
+)
+
+data class BudgetSummary(
+    val estimatedCompanyLiability: Float = 0f,
+    val monthlyProjection: Float = 0f,
+    val liabilityBuffer: Float = 0f
+)
+
+data class DashboardState(
+    val stats: DashboardStats = DashboardStats(),
+    val revenueSummary: RevenueSummary = RevenueSummary(),
+    val coinEconomySummary: CoinEconomySummary = CoinEconomySummary(),
+    val redemptionSummary: RedemptionSummary = RedemptionSummary(),
+    val leaderboardSummary: LeaderboardSummary = LeaderboardSummary(),
+    val trustSummary: TrustSummary = TrustSummary(),
+    val adPerformanceSummary: AdPerformanceSummary = AdPerformanceSummary(),
+    val budgetSummary: BudgetSummary = BudgetSummary()
+)

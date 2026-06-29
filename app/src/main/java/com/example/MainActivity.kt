@@ -42,6 +42,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.data.api.NetworkClient
 import com.example.data.local.UserPreferences
 import com.example.data.repository.AdRepository
+import com.example.data.repository.CeoDashboardRepository
 import com.example.data.repository.LeaderboardRepository
 import com.example.data.repository.NotificationRepository
 import com.example.data.repository.RewardRepository
@@ -210,6 +211,7 @@ class MainActivity : ComponentActivity() {
         val rewardRepo = RewardRepository(userRepo)
         val transactionRepo = TransactionRepository(prefs, userRepo)
         val leaderboardRepo = LeaderboardRepository(userRepo, prefs)
+        val ceoDashboardRepo = CeoDashboardRepository(userRepo)
         val notificationRepo = NotificationRepository(prefs)
         val syncRepo = SyncRepository(prefs, userRepo, rewardRepo, transactionRepo, leaderboardRepo, notificationRepo)
         userRepo.attachRepositories(rewardRepo, transactionRepo, leaderboardRepo, notificationRepo, syncRepo)

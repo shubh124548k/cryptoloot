@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -416,7 +418,7 @@ fun ProfileScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StatMiniCard(
-                            icon = Icons.Default.ReceiptLong,
+                            icon = Icons.AutoMirrored.Filled.ReceiptLong,
                             iconColor = NeonCyan,
                             value = "$totalTransactions",
                             label = "Total Txns",
@@ -440,7 +442,7 @@ fun ProfileScreen(
                             modifier = Modifier.weight(1f)
                         )
                         StatMiniCard(
-                            icon = Icons.Default.TrendingUp,
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
                             iconColor = NeonYellow,
                             value = String.format("%.1f", averageCoinsPerReward),
                             label = "Avg / Reward",
