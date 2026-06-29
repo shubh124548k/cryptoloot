@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KryptoLoot Master Admin Console Panel</title>
+    <style>
+        body { background-color: #0A0A0C; color: #FFFFFF; font-family: monospace; padding: 30px; }
+        h1 { color: #FFFFD700; border-bottom: 2px solid #FF6B00; padding-bottom: 10px; margin-bottom: 5px; }
+        .stats-grid { display: flex; gap: 20px; margin: 25px 0; }
+        .stat-card { background: #121214; border: 1px solid #2A2A30; padding: 15px 25px; border-radius: 6px; flex: 1; }
+        .stat-card h3 { color: #888; margin: 0 0 5px 0; font-size: 11px; }
+        .stat-card p { color: #FFFFD700; font-size: 24px; font-weight: bold; margin: 0; }
+        table { width: 100%; border-collapse: collapse; background: #121214; margin-top: 15px; }
+        th, td { padding: 12px; border: 1.5px solid #2A2A30; text-align: left; }
+        th { background-color: #16161A; color: #FF6B00; }
+        .status-pending { color: #FF9900; font-weight: bold; }
+        .status-done { color: #34C759; font-weight: bold; }
+        input[type="text"] { background: #000000; border: 1px solid #FF6B00; color: #FFFFD700; padding: 6px; width: 220px; font-family: monospace; }
+        button { background: #FF6B00; color: white; border: none; padding: 6px 14px; cursor: pointer; font-weight: bold; font-family: monospace; }
+        button:hover { background: #FFFFD700; color: black; }
+    </style>
+</head>
+<body>
+
+    <h1>KryptoLoot Live Payout Requests Registry Vault</h1>
+    <p style="color: gray; margin: 0;">Monitor transactional redemptions and inject live commercial gift card tokens.</p>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>TOTAL REVENUE GENERATED (EST)</h3>
+            <p id="totalRevenueBox">₹0.00</p>
+        </div>
+        <div class="stat-card">
+            <h3>TOTAL USER PAYOUTS CLAIMED</h3>
+            <p id="totalPayoutBox">₹0.00</p>
+        </div>
+        <div class="stat-card">
+            <h3>NET BUSINESS REVENUE PROFIT</h3>
+            <p id="netProfitBox" style="color: #34C759;">₹0.00</p>
+        </div>
+    </div>
+
+    <button onclick="loadPayoutRequests()" style="margin-bottom: 15px;">REFRESH DATA TERMINAL 🔄</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Transaction ID</th>
+                <th>User Master UID</th>
+                <th>Payout Value</th>
+                <th>Status</th>
+                <th>Action Terminal / Delivery Interface</th>
+            </tr>
+        </thead>
+        <tbody id="payoutTableBody"></tbody>
+    </table>
+
+    <script>
+        const API_BASE = "http://127.0.0";
+
+        async function loadPayoutRequests() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/view-payouts`);
+                const data = await response.json();
+                const tbody = document.getElementById("payoutTableBody");
+                tbody.innerHTML = "";
+
+                let totalPaidOut = 0;
+                let estimatedAdViews = 0;
+
+                data.forEach(txn => {
+                    if (txn.status === "COMPLETED") totalPaidOut += txn.payout_value_rupees;
+                    if(txn.tier_id === "1") estimatedAdViews += 300;
+                    else if(txn.tier_id === "2") estimatedAdViews += 600;
+                });
+
+                let grossEarnings = (estimatedAdViews * 0.084); 
+                let netProfitMargin = grossEarnings - totalPaidOut;
+
+                document.getElementById("totalRevenueBox").innerText = "₹" + grossEarnings.toFixed(2);
+                document.getElementById("totalPayoutBox").innerText = "₹" + totalPaidOut.toFixed(2);
+                document.getElementById("netProfitBox").innerText = "₹" + netProfitMargin.toFixed(2);
+
+                if(data.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; color:gray;'>No redemptions logged yet.</td></tr>";
+                    return;
+                }
+
+                data.reverse().forEach(txn => {
+                    const isPending = txn.status === "PENDING";
+                    const actionContent = isPending ? 
+                        `<input type="text" id="code_${txn.transaction_id}" placeholder="ENTER REDEEM VOUCHER CODE"> 
+                         <button onclick="sendVoucherCode('${txn.transaction_id}')">SEND CODE ⚡</button>` : 
+                        `<span style="color:#8a8a8a;">Delivered: <b>${txn.redeem_code}</b></span>`;
+
+                    tbody.innerHTML += `<tr>
+                        <td>${txn.transaction_id}</td>
+                        <td style="color:#FFFFD700; font-weight:bold;">${txn.master_uid}</td>
+                        <td>₹${txn.payout_value_rupees}</td>
+                        <td class="${isPending ? 'status-pending' : 'status-done'}">${txn.status}</td>
+                        <td>${actionContent}</td>
+                    </tr>`;
+                });
+            } catch (error) { console.log("Waiting for database data pings..."); }
+        }
+
+        async function sendVoucherCode(txnId) {
+            const code = document.getElementById(`code_${txnId}`).value.trim();
+            if (!code) return alert("Voucher string cannot be empty.");
+
+            try {
+                const r = await fetch(`${API_BASE}/admin/fulfill`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ transaction_id: txnId, redeem_code: code })
+                });
+                if ((await r.json()).status === "success") {
+                    alert("Voucher dispatched safely!");
+                    loadPayoutRequests();
+                }
+            } catch (e) { alert("Network pipeline error."); }
+        }
+        window.onload = loadPayoutRequests;
+    </script>
+</body>
+</html>

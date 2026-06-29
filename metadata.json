@@ -1,0 +1,6 @@
+{
+  "name": "KryptoLoot",
+  "description": "Earn Coins. Get Rewards. Dominate. Dark cyberpunk anime micro-rewards platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
