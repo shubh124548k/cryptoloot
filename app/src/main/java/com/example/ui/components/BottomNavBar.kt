@@ -54,7 +54,7 @@ fun BottomNavBar(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .height(72.dp)
+            .height(74.dp)
             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
             .background(
                 brush = Brush.verticalGradient(
@@ -99,7 +99,7 @@ fun BottomNavBar(
                             indication = null,
                             onClick = { onNavigate(item.route) }
                         )
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
                         .scale(scale),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -107,7 +107,7 @@ fun BottomNavBar(
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(42.dp)
                             .background(
                                 color = if (isActive) activeColor.copy(alpha = 0.15f) else Color.Transparent,
                                 shape = CircleShape
@@ -117,7 +117,7 @@ fun BottomNavBar(
                             imageVector = item.icon,
                             contentDescription = item.label,
                             tint = iconColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(23.dp)
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))

@@ -67,7 +67,7 @@ fun CoinCounter(
             Row(
                 modifier = modifier
                     .shadow(
-                        elevation = 4.dp,
+                        elevation = 5.dp,
                         shape = CircleShape,
                         ambientColor = NeonGold,
                         spotColor = NeonGold
@@ -102,7 +102,7 @@ fun CoinCounter(
             Row(
                 modifier = modifier
                     .shadow(
-                        elevation = 8.dp,
+                        elevation = 9.dp,
                         shape = CircleShape,
                         ambientColor = NeonGold,
                         spotColor = NeonGold
@@ -144,7 +144,7 @@ fun CoinCounter(
                     modifier = Modifier
                         .size(120.dp)
                         .shadow(
-                            elevation = (20 * coinGlowAlpha).dp,
+                            elevation = (16 * coinGlowAlpha).dp,
                             shape = CircleShape,
                             ambientColor = NeonGold,
                             spotColor = NeonGold

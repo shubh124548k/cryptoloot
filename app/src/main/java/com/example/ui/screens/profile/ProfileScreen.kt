@@ -82,7 +82,7 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 24.dp, vertical = 18.dp)
                 .padding(bottom = 100.dp) // padding for bottom navigation
         ) {
             // Title
@@ -105,7 +105,7 @@ fun ProfileScreen(
                         brush = Brush.linearGradient(listOf(NeonPink, NeonPurple))
                     )
                     .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                    .padding(20.dp)
+                    .padding(18.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -250,7 +250,7 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Secure Recovery Input Panel
             var recoveryInput by remember { mutableStateOf("") }

@@ -55,7 +55,7 @@ fun NeonButton(
         label = "PulseGlow"
     )
     
-    val buttonShape = RoundedCornerShape(10.dp)
+    val buttonShape = RoundedCornerShape(14.dp)
     
     val modifierWithClicks = if (enabled) {
         modifier
@@ -103,8 +103,8 @@ fun NeonButton(
             .shadow(
                 elevation = shadowElevation,
                 shape = buttonShape,
-                ambientColor = shadowColor.copy(alpha = 0.25f),
-                spotColor = shadowColor.copy(alpha = 0.25f)
+                ambientColor = shadowColor.copy(alpha = 0.2f),
+                spotColor = shadowColor.copy(alpha = 0.2f)
             )
             .background(backgroundBrush, shape = buttonShape)
             .then(
@@ -115,7 +115,7 @@ fun NeonButton(
         contentAlignment = Alignment.Center
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -126,7 +126,7 @@ fun NeonButton(
             Text(
                 text = text,
                 color = if (!enabled) TextMuted else if (style == NeonButtonStyle.SECONDARY) NeonCyan else Color.White,
-                fontSize = if (style == NeonButtonStyle.WATCH_AD) 18.sp else 16.sp,
+                fontSize = if (style == NeonButtonStyle.WATCH_AD) 17.sp else 15.sp,
                 fontFamily = RajdhaniFamily,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.05.sp

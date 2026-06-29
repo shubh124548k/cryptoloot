@@ -68,8 +68,8 @@ fun NeonCard(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        CardSurface.copy(alpha = 0.75f),
-                        CardSurface2.copy(alpha = 0.60f)
+                        CardSurface.copy(alpha = 0.80f),
+                        CardSurface2.copy(alpha = 0.68f)
                     )
                 ),
                 shape = cardShape
@@ -87,14 +87,14 @@ fun NeonCard(
                 shape = cardShape
             )
             .shadow(
-                elevation = (2 * glowIntensity).dp,
+                elevation = (2.2f * glowIntensity).dp,
                 shape = cardShape,
-                ambientColor = glowColor.copy(alpha = glowAlpha * glowIntensity * 0.25f),
-                spotColor = glowColor.copy(alpha = glowAlpha * glowIntensity * 0.25f)
+                ambientColor = glowColor.copy(alpha = glowAlpha * glowIntensity * 0.14f),
+                spotColor = glowColor.copy(alpha = glowAlpha * glowIntensity * 0.14f)
             )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             content = content
         )
     }

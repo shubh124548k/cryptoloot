@@ -68,7 +68,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 24.dp, vertical = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -132,7 +132,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(statsScrollState)
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                    .padding(horizontal = 24.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Card 1 — Daily Ads Progress
@@ -254,7 +254,7 @@ fun HomeScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             if (uiState.activeRedeemStatus != null) {
                 NeonCard(
@@ -329,7 +329,7 @@ fun HomeScreen(
                     enabled = !onBreak,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(72.dp),
+                        .height(74.dp),
                     icon = {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -508,7 +508,7 @@ fun HomeScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(100.dp)) // Padding for bottom navbar
+            Spacer(modifier = Modifier.height(96.dp)) // Padding for bottom navbar
         }
         
         // Error state toast overlay

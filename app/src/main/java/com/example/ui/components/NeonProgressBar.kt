@@ -54,7 +54,7 @@ fun NeonProgressBar(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(9.dp)
         ) {
             val trackHeight = size.height
             val trackWidth = size.width
