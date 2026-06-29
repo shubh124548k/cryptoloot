@@ -36,6 +36,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val statsScrollState = rememberScrollState()
     
     // Rotating watch ad play icon animation
     val infiniteTransition = rememberInfiniteTransition(label = "WatchIcon")
@@ -130,7 +131,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
+                    .horizontalScroll(statsScrollState)
                     .padding(horizontal = 24.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {

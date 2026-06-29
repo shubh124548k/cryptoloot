@@ -426,33 +426,10 @@ class UserRepository(
 
     private fun emitSnapshot(handshake: HandshakeResponse?) {
         val transactions = currentTransactions()
-        leaderboardRepository?.refreshLeaderboard(
-            AppSnapshot(
-                username = prefs.displayName ?: "Krypton_Warrior",
-                userUid = getMasterUid(),
-                coinBalance = prefs.coinBalance,
-                totalAdsWatched = prefs.totalAdsWatched,
-                dailyAdsWatched = prefs.adsWatchedToday,
-                successfulRedeems = prefs.successfulRedeems,
-                transactionHistory = transactions,
-                redeemRequests = readRedeemRequests(),
-                redeemStats = buildRedeemQueueStats(readRedeemQueue()),
-                transactionStats = buildTransactionStatistics(transactions),
-                trustScore = prefs.trustScore,
-                totalCoinsEarned = prefs.totalCoinsEarned,
-                notificationCount = prefs.notificationCount,
-                adsWatchedToday = handshake?.ads_today ?: prefs.adsWatchedToday,
-                sessionAds = handshake?.session_ads ?: prefs.sessionAds,
-                dailyCap = handshake?.daily_cap ?: 100,
-                sessionCap = handshake?.session_cap ?: 15,
-                breakUntil = handshake?.break_until?.toLongOrNull(),
-                operationalStatus = handshake?.operational_status ?: "ACTIVE",
-                masterUid = prefs.masterUid,
-                deviceId = prefs.deviceId,
-                displayName = prefs.displayName,
-                photoUrl = prefs.photoUrl
-            )
-        )
+        val redeemRequests = readRedeemRequests()
+        val redeemQueue = readRedeemQueue()
+        val redeemStats = buildRedeemQueueStats(redeemQueue)
+        val transactionStats = buildTransactionStatistics(transactions)
         val leaderboardState = leaderboardRepository?.leaderboardState?.value ?: LeaderboardState()
         val snapshot = AppSnapshot(
             username = prefs.displayName ?: "Krypton_Warrior",
@@ -462,9 +439,9 @@ class UserRepository(
             dailyAdsWatched = prefs.adsWatchedToday,
             successfulRedeems = prefs.successfulRedeems,
             transactionHistory = transactions,
-            redeemRequests = readRedeemRequests(),
-            redeemStats = buildRedeemQueueStats(readRedeemQueue()),
-            transactionStats = buildTransactionStatistics(transactions),
+            redeemRequests = redeemRequests,
+            redeemStats = redeemStats,
+            transactionStats = transactionStats,
             leaderboardState = leaderboardState,
             trustScore = prefs.trustScore,
             totalCoinsEarned = prefs.totalCoinsEarned,
@@ -480,6 +457,9 @@ class UserRepository(
             displayName = prefs.displayName,
             photoUrl = prefs.photoUrl
         )
+        if (_appState.value == snapshot) {
+            return
+        }
         _appState.value = snapshot
         rewardRepository?.refreshRewards(snapshot.coinBalance)
         leaderboardRepository?.refreshLeaderboard(snapshot)

@@ -1,5 +1,6 @@
 package com.example.ui.screens.home
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.repository.AdRepository
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+@Immutable
 data class HomeUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
@@ -56,45 +58,9 @@ class HomeViewModel(
 
     init {
         userRepo.appState.onEach { snapshot ->
-            val rupeeVal = snapshot.coinBalance * 0.0333f
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    coinBalance = snapshot.coinBalance,
-                    adsWatchedToday = snapshot.dailyAdsWatched,
-                    sessionAds = snapshot.sessionAds,
-                    breakUntil = snapshot.breakUntil,
-                    trustScore = snapshot.trustScore,
-                    operationalStatus = snapshot.operationalStatus,
-                    estimatedRupeeValue = "₹${String.format("%.2f", rupeeVal)}",
-                    totalCoinsEarned = snapshot.totalCoinsEarned.coerceAtLeast(snapshot.coinBalance),
-                    rewardPacks = RewardPackCatalog.fromBalance(snapshot.coinBalance),
-                    redeemQueue = snapshot.redeemRequests.map { request ->
-                        RedeemQueueEntry(
-                            id = request.id,
-                            userUid = request.userUid,
-                            username = request.username,
-                            packId = request.packId,
-                            packName = request.packName,
-                            coinCost = request.coinsUsed,
-                            rewardAmount = request.rewardAmount,
-                            requestTimestamp = request.requestTimestamp.ifEmpty { request.createdAt },
-                            currentStatus = request.status,
-                            processingPosition = request.queuePosition,
-                            estimatedProcessingTime = request.estimatedProcessingTime,
-                            previousBalance = snapshot.coinBalance + request.coinsUsed,
-                            currentBalance = snapshot.coinBalance,
-                            createdAt = request.createdAt,
-                            updatedAt = request.updatedAt
-                        )
-                    },
-                    activeRedeemStatus = snapshot.redeemStats.activeStatus,
-                    activeQueuePosition = snapshot.redeemStats.activeQueuePosition,
-                    estimatedQueueWait = snapshot.redeemStats.estimatedWaitText,
-                    currentRank = snapshot.leaderboardState.currentUserStanding.currentRank,
-                    currentLeague = snapshot.leaderboardState.stats.currentLeague,
-                    leaderboardScore = snapshot.leaderboardState.stats.leaderboardScore
-                )
+            val nextState = buildUiState(snapshot)
+            if (_uiState.value != nextState) {
+                _uiState.value = nextState
             }
         }.launchIn(viewModelScope)
         initialize()
@@ -129,6 +95,49 @@ class HomeViewModel(
 
     fun refreshData() {
         initialize()
+    }
+
+    private fun buildUiState(snapshot: com.example.data.repository.AppSnapshot): HomeUiState {
+        val rupeeVal = snapshot.coinBalance * 0.0333f
+        val redeemQueue = snapshot.redeemRequests.map { request ->
+            RedeemQueueEntry(
+                id = request.id,
+                userUid = request.userUid,
+                username = request.username,
+                packId = request.packId,
+                packName = request.packName,
+                coinCost = request.coinsUsed,
+                rewardAmount = request.rewardAmount,
+                requestTimestamp = request.requestTimestamp.ifEmpty { request.createdAt },
+                currentStatus = request.status,
+                processingPosition = request.queuePosition,
+                estimatedProcessingTime = request.estimatedProcessingTime,
+                previousBalance = snapshot.coinBalance + request.coinsUsed,
+                currentBalance = snapshot.coinBalance,
+                createdAt = request.createdAt,
+                updatedAt = request.updatedAt
+            )
+        }
+
+        return HomeUiState(
+            isLoading = false,
+            coinBalance = snapshot.coinBalance,
+            adsWatchedToday = snapshot.dailyAdsWatched,
+            sessionAds = snapshot.sessionAds,
+            breakUntil = snapshot.breakUntil,
+            trustScore = snapshot.trustScore,
+            operationalStatus = snapshot.operationalStatus,
+            estimatedRupeeValue = "₹${String.format("%.2f", rupeeVal)}",
+            totalCoinsEarned = snapshot.totalCoinsEarned.coerceAtLeast(snapshot.coinBalance),
+            rewardPacks = RewardPackCatalog.fromBalance(snapshot.coinBalance),
+            redeemQueue = redeemQueue,
+            activeRedeemStatus = snapshot.redeemStats.activeStatus,
+            activeQueuePosition = snapshot.redeemStats.activeQueuePosition,
+            estimatedQueueWait = snapshot.redeemStats.estimatedWaitText,
+            currentRank = snapshot.leaderboardState.currentUserStanding.currentRank,
+            currentLeague = snapshot.leaderboardState.stats.currentLeague,
+            leaderboardScore = snapshot.leaderboardState.stats.leaderboardScore
+        )
     }
 
     private fun startBreakCountdown(breakUntilMs: Long) {
