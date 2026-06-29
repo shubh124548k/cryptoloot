@@ -37,7 +37,10 @@ data class HomeUiState(
     val redeemQueue: List<RedeemQueueEntry> = emptyList(),
     val activeRedeemStatus: String? = null,
     val activeQueuePosition: Int? = null,
-    val estimatedQueueWait: String? = null
+    val estimatedQueueWait: String? = null,
+    val currentRank: Int = 0,
+    val currentLeague: String = "UNRANKED",
+    val leaderboardScore: Int = 0
 )
 
 class HomeViewModel(
@@ -87,7 +90,10 @@ class HomeViewModel(
                     },
                     activeRedeemStatus = snapshot.redeemStats.activeStatus,
                     activeQueuePosition = snapshot.redeemStats.activeQueuePosition,
-                    estimatedQueueWait = snapshot.redeemStats.estimatedWaitText
+                    estimatedQueueWait = snapshot.redeemStats.estimatedWaitText,
+                    currentRank = snapshot.leaderboardState.currentUserStanding.currentRank,
+                    currentLeague = snapshot.leaderboardState.stats.currentLeague,
+                    leaderboardScore = snapshot.leaderboardState.stats.leaderboardScore
                 )
             }
         }.launchIn(viewModelScope)

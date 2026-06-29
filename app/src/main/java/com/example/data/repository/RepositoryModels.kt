@@ -44,7 +44,73 @@ data class LeaderboardStats(
     val leaderboardScore: Int = 0,
     val currentRank: Int = 0,
     val weeklyRank: Int = 0,
-    val globalRank: Int = 0
+    val hallOfFameRank: Int = 0,
+    val globalRank: Int = 0,
+    val totalPlayers: Int = 0,
+    val rankDifference: Int = 0,
+    val currentLeague: String = "UNRANKED",
+    val weeklyResetAt: String? = null,
+    val lastActivityAt: String? = null
+)
+
+data class LeaderboardEntry(
+    val userUid: String,
+    val displayName: String,
+    val score: Int,
+    val weeklyScore: Int,
+    val totalCoinsEarned: Int,
+    val successfulRedeems: Int,
+    val trustScore: Int,
+    val totalTransactions: Int,
+    val leaguePosition: String,
+    val currentRank: Int = 0,
+    val weeklyRank: Int = 0,
+    val hallOfFameRank: Int = 0,
+    val rankDifference: Int = 0,
+    val isCurrentUser: Boolean = false,
+    val lastActivityAt: String? = null
+)
+
+data class WeeklyReset(
+    val periodDays: Int = 7,
+    val periodStartAt: String? = null,
+    val nextResetAt: String? = null,
+    val resetLabel: String = "WEEKLY_RESET"
+)
+
+data class CurrentUserStanding(
+    val userUid: String = "",
+    val displayName: String = "Krypton_Warrior",
+    val currentRank: Int = 0,
+    val weeklyRank: Int = 0,
+    val hallOfFameRank: Int = 0,
+    val leaderboardScore: Int = 0,
+    val rankDifference: Int = 0,
+    val leaguePosition: String = "UNRANKED",
+    val totalPlayers: Int = 0,
+    val weeklyReset: WeeklyReset = WeeklyReset()
+)
+
+data class WeeklyLeaderboard(
+    val entries: List<LeaderboardEntry> = emptyList(),
+    val totalPlayers: Int = 0,
+    val currentUserStanding: CurrentUserStanding = CurrentUserStanding(),
+    val weeklyReset: WeeklyReset = WeeklyReset()
+)
+
+data class HallOfFameLeaderboard(
+    val entries: List<LeaderboardEntry> = emptyList(),
+    val totalPlayers: Int = 0,
+    val currentUserStanding: CurrentUserStanding = CurrentUserStanding()
+)
+
+data class LeaderboardState(
+    val stats: LeaderboardStats = LeaderboardStats(),
+    val weeklyLeaderboard: WeeklyLeaderboard = WeeklyLeaderboard(),
+    val hallOfFameLeaderboard: HallOfFameLeaderboard = HallOfFameLeaderboard(),
+    val currentUserStanding: CurrentUserStanding = CurrentUserStanding(),
+    val topPlayers: List<LeaderboardEntry> = emptyList(),
+    val weeklyReset: WeeklyReset = WeeklyReset()
 )
 
 data class NotificationItem(

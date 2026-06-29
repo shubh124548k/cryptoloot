@@ -11,6 +11,7 @@ data class AppSnapshot(
     val redeemRequests: List<RedeemRequestRecord> = emptyList(),
     val redeemStats: RedeemQueueStats = RedeemQueueStats(),
     val transactionStats: TransactionStatistics = TransactionStatistics(),
+    val leaderboardState: LeaderboardState = LeaderboardState(),
     val trustScore: Int = 100,
     val totalCoinsEarned: Int = 0,
     val notificationCount: Int = 0,

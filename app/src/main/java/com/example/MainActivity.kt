@@ -218,7 +218,7 @@ class MainActivity : ComponentActivity() {
         val homeViewModel = HomeViewModel(userRepo, adRepo)
         val watchAdViewModel = WatchAdViewModel(adRepo, userRepo)
         val coinsViewModel = CoinsViewModel(rewardsRepo, userRepo)
-        val leaderboardViewModel = LeaderboardViewModel(api, userRepo)
+        val leaderboardViewModel = LeaderboardViewModel(leaderboardRepo, userRepo)
         val sharedAppViewModel = SharedAppViewModel(userRepo)
         
         setContent {
@@ -328,6 +328,9 @@ class MainActivity : ComponentActivity() {
                                             coinsRedeemedLifetime = appState.transactionStats.coinsRedeemedLifetime,
                                             lastTransactionTime = appState.transactionStats.lastTransactionTime,
                                             averageCoinsPerReward = appState.transactionStats.averageCoinsPerReward,
+                                            currentRank = appState.leaderboardState.currentUserStanding.currentRank,
+                                            currentLeague = appState.leaderboardState.stats.currentLeague,
+                                            leaderboardScore = appState.leaderboardState.stats.leaderboardScore,
                                             onRecoverUid = { pastedUid, onResult ->
                                                 coroutineScope.launch {
                                                     val response = userRepo.performUidRecovery(pastedUid)

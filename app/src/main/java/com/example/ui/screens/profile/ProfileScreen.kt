@@ -48,6 +48,9 @@ fun ProfileScreen(
     rejectedRedeems: Int,
     lastRedeemDate: String?,
     totalLifetimeRedeems: Int,
+    currentRank: Int,
+    currentLeague: String,
+    leaderboardScore: Int,
     totalTransactions: Int,
     coinsEarnedLifetime: Int,
     coinsRedeemedLifetime: Int,
@@ -516,9 +519,39 @@ fun ProfileScreen(
                     StatMiniCard(
                         icon = Icons.Default.Leaderboard,
                         iconColor = NeonPurple,
-                        value = "#11",
+                        value = "#$currentRank",
                         label = "League Standing",
                         modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            NeonCard(
+                glowColor = NeonPurple,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "CURRENT LEAGUE",
+                        color = NeonPurple,
+                        fontSize = 11.sp,
+                        fontFamily = RajdhaniFamily,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = currentLeague,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontFamily = RajdhaniFamily,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Leaderboard Score: $leaderboardScore",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = InterFamily
                     )
                 }
             }

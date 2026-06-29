@@ -97,6 +97,8 @@ dependencies {
   implementation("com.startapp:inapp-sdk:5.3.1")
 
   debugImplementation(libs.androidx.compose.ui.tooling)
+  testImplementation(libs.junit)
+  testImplementation(libs.kotlinx.coroutines.test)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
