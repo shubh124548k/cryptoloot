@@ -1,52 +1,222 @@
 [
     {
-        "id": "notif-TXN-1782920853-VAK-rejected",
-        "request_id": "TXN-1782920853-VAK",
-        "title": "Redeem Rejected",
-        "message": "Request TXN-1782920853-VAK was rejected. use cheat",
-        "status": "REJECTED",
-        "reward_pack": "Pack 3",
-        "timestamp": "2026-07-01 21:29:01",
-        "is_read": false
-    },
-    {
-        "id": "notif-TXN-1782920853-VAK-pending",
-        "request_id": "TXN-1782920853-VAK",
-        "title": "Redeem Submitted",
-        "message": "Request TXN-1782920853-VAK is pending approval.",
-        "status": "PENDING",
-        "reward_pack": "Gold Pack",
-        "timestamp": "2026-07-01 21:17:33",
-        "is_read": false
-    },
-    {
-        "id": "notif-TXN-1782905430-FBX-completed",
-        "request_id": "TXN-1782905430-FBX",
+        "id": "notif-TXN-1782999205-RGT-completed",
+        "request_id": "TXN-1782999205-RGT",
         "title": "Payment Sent Successfully",
-        "message": "Request TXN-1782905430-FBX has been completed. Reference: UTR-VALID-001",
+        "message": "Request TXN-1782999205-RGT has been completed. Reference: TEST-FREE-GIFT-2026\nAdmin: we",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 5",
+        "timestamp": "2026-07-02 19:04:30",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782999205-RGT-processing",
+        "request_id": "TXN-1782999205-RGT",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782999205-RGT is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 5",
+        "timestamp": "2026-07-02 19:04:25",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782999205-RGT-pending",
+        "request_id": "TXN-1782999205-RGT",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782999205-RGT is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Elite Pack",
+        "timestamp": "2026-07-02 19:03:25",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782995791-MPN-completed",
+        "request_id": "TXN-1782995791-MPN",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782995791-MPN has been completed. Reference: TEST-FREE-GIFT-2026\nAdmin: thank you",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 2",
+        "timestamp": "2026-07-02 18:06:49",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782995791-MPN-processing",
+        "request_id": "TXN-1782995791-MPN",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782995791-MPN is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 2",
+        "timestamp": "2026-07-02 18:06:38",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782995791-MPN-pending",
+        "request_id": "TXN-1782995791-MPN",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782995791-MPN is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Silver Pack",
+        "timestamp": "2026-07-02 18:06:31",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782995062-MHG-completed",
+        "request_id": "TXN-1782995062-MHG",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782995062-MHG has been completed. Reference: TEST-FREE-GIFT-2026\nAdmin: thank you for using app!",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 1",
+        "timestamp": "2026-07-02 17:54:51",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782995062-MHG-processing",
+        "request_id": "TXN-1782995062-MHG",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782995062-MHG is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 1",
+        "timestamp": "2026-07-02 17:54:33",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782995062-MHG-pending",
+        "request_id": "TXN-1782995062-MHG",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782995062-MHG is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Bronze Pack",
+        "timestamp": "2026-07-02 17:54:22",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782988428-NUI-completed",
+        "request_id": "TXN-1782988428-NUI",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782988428-NUI has been completed. Reference: SAMPLE12345CODE\nAdmin: SAMPLE12345CODE",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 4",
+        "timestamp": "2026-07-02 16:04:46",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782988428-NUI-processing",
+        "request_id": "TXN-1782988428-NUI",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782988428-NUI is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 4",
+        "timestamp": "2026-07-02 16:03:57",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782988428-NUI-pending",
+        "request_id": "TXN-1782988428-NUI",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782988428-NUI is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Diamond Pack",
+        "timestamp": "2026-07-02 16:03:48",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782985779-MBK-completed",
+        "request_id": "TXN-1782985779-MBK",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782985779-MBK has been completed. Reference: HELLO THANKS FOR USING APP!",
         "status": "COMPLETED",
         "reward_pack": "Pack 3",
-        "timestamp": "2026-07-01 17:00:53",
+        "timestamp": "2026-07-02 15:21:02",
         "is_read": false
     },
     {
-        "id": "notif-TXN-1782905430-FBX-processing",
-        "request_id": "TXN-1782905430-FBX",
+        "id": "notif-TXN-1782985779-MBK-processing",
+        "request_id": "TXN-1782985779-MBK",
         "title": "Payment Processing",
-        "message": "Request TXN-1782905430-FBX is being processed for payment.",
+        "message": "Request TXN-1782985779-MBK is being processed for payment.",
         "status": "PROCESSING",
         "reward_pack": "Pack 3",
-        "timestamp": "2026-07-01 17:00:53",
+        "timestamp": "2026-07-02 15:20:35",
         "is_read": false
     },
     {
-        "id": "notif-TXN-1782905430-FBX-pending",
-        "request_id": "TXN-1782905430-FBX",
+        "id": "notif-TXN-1782985779-MBK-pending",
+        "request_id": "TXN-1782985779-MBK",
         "title": "Redeem Submitted",
-        "message": "Request TXN-1782905430-FBX is pending approval.",
+        "message": "Request TXN-1782985779-MBK is pending approval.",
         "status": "PENDING",
         "reward_pack": "Gold Pack",
-        "timestamp": "2026-07-01 17:00:30",
+        "timestamp": "2026-07-02 15:19:39",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782985428-KSI-completed",
+        "request_id": "TXN-1782985428-KSI",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782985428-KSI has been completed. Reference: ok done",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 5",
+        "timestamp": "2026-07-02 15:15:15",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782985428-KSI-processing",
+        "request_id": "TXN-1782985428-KSI",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782985428-KSI is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 5",
+        "timestamp": "2026-07-02 15:15:05",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782985428-KSI-pending",
+        "request_id": "TXN-1782985428-KSI",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782985428-KSI is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Elite Pack",
+        "timestamp": "2026-07-02 15:13:48",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782974720-PNM-completed",
+        "request_id": "TXN-1782974720-PNM",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782974720-PNM has been completed. Reference: UTR-DEMO-12345",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 1",
+        "timestamp": "2026-07-02 12:16:39",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782974720-PNM-processing",
+        "request_id": "TXN-1782974720-PNM",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782974720-PNM is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 1",
+        "timestamp": "2026-07-02 12:16:39",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782974720-PNM-pending",
+        "request_id": "TXN-1782974720-PNM",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782974720-PNM is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Bronze Pack",
+        "timestamp": "2026-07-02 12:15:21",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782970539-KTV-pending",
+        "request_id": "TXN-1782970539-KTV",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782970539-KTV is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Bronze Pack",
+        "timestamp": "2026-07-02 11:05:39",
         "is_read": false
     }
 ]

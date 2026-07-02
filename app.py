@@ -219,7 +219,8 @@ def build_redemption_history_item(entry):
         "server_synced": False,
         "version_number": 1,
         "reward_name": pack_info.get("name") or f"Pack {tier_id}",
-        "cash_amount": float(entry.get("payout_value_rupees", pack_info.get("rupees", 0)))
+        "cash_amount": float(entry.get("payout_value_rupees", pack_info.get("rupees", 0))),
+        "admin_reply": entry.get("admin_reply", "")
     }
 
 
@@ -276,32 +277,36 @@ def check_redeem_rate_limits(device_id, user, tier_id):
         month = datetime.now(ist_timezone).strftime("%Y-%m")
         hour_ago = datetime.now(ist_timezone) - timedelta(hours=1)
         
-        # Check daily limit (3 per day)
-        today_redeems = [r for r in user_redeems if r.get("timestamp", "").startswith(today)]
-        if len(today_redeems) >= 3:
-            return {"allowed": False, "reason": "Daily redeem limit (3) reached. Try again tomorrow."}
+        # Check daily limit (3 per day) — skipped in development mode
+        if os.environ.get("FLASK_ENV") != "development":
+            today_redeems = [r for r in user_redeems if r.get("timestamp", "").startswith(today)]
+            if len(today_redeems) >= 3:
+                return {"allowed": False, "reason": "Daily redeem limit (3) reached. Try again tomorrow."}
         
-        # Check monthly limit (10 per month)
-        month_redeems = [r for r in user_redeems if r.get("timestamp", "").startswith(month)]
-        if len(month_redeems) >= 10:
-            return {"allowed": False, "reason": "Monthly redeem limit (10) reached. Try again next month."}
+        # Check monthly limit (10 per month) — skipped in development mode
+        if os.environ.get("FLASK_ENV") != "development":
+            month_redeems = [r for r in user_redeems if r.get("timestamp", "").startswith(month)]
+            if len(month_redeems) >= 10:
+                return {"allowed": False, "reason": "Monthly redeem limit (10) reached. Try again next month."}
         
-        # Check for duplicate pending redeem with same tier
-        pending_same_tier = [
-            r for r in user_redeems 
-            if r.get("status", "").upper() in ["PENDING", "PROCESSING"] and r.get("tier_id") == str(tier_id)
-        ]
-        if pending_same_tier:
-            return {"allowed": False, "reason": "A pending redeem for this pack already exists."}
-        
-        # Check hourly cooldown per tier
-        recent_same_tier = [
-            r for r in user_redeems 
-            if r.get("tier_id") == str(tier_id) and 
-            (datetime.fromisoformat(r.get("timestamp", "")) > hour_ago if r.get("timestamp") else False)
-        ]
-        if recent_same_tier:
-            return {"allowed": False, "reason": "Please wait at least 1 hour before redeeming this pack again."}
+        # All remaining rate limits — skipped in development mode
+        if os.environ.get("FLASK_ENV") != "development":
+            # Check for duplicate pending redeem with same tier
+            pending_same_tier = [
+                r for r in user_redeems 
+                if r.get("status", "").upper() in ["PENDING", "PROCESSING"] and r.get("tier_id") == str(tier_id)
+            ]
+            if pending_same_tier:
+                return {"allowed": False, "reason": "A pending redeem for this pack already exists."}
+            
+            # Check hourly cooldown per tier
+            recent_same_tier = [
+                r for r in user_redeems 
+                if r.get("tier_id") == str(tier_id) and 
+                (datetime.fromisoformat(r.get("timestamp", "")) > hour_ago if r.get("timestamp") else False)
+            ]
+            if recent_same_tier:
+                return {"allowed": False, "reason": "Please wait at least 1 hour before redeeming this pack again."}
         
         return {"allowed": True, "reason": "Rate limits OK"}
     except Exception as e:
@@ -804,6 +809,51 @@ def debug_creds():
     })
 
 
+@app.route('/api/v1/debug/adjust', methods=['POST'])
+def debug_adjust():
+    """DEBUG ENDPOINT - Adjust coins and trust score for a device. Only in development."""
+    if os.environ.get("FLASK_ENV") != "development":
+        return jsonify({"status": "error", "message": "Not available in production."}), 403
+
+    data = request.json or {}
+    device_id = data.get("device_id")
+    coin_delta = data.get("coin_delta")
+    trust_score = data.get("trust_score")
+
+    if not device_id:
+        return jsonify({"status": "error", "message": "Missing device_id."}), 400
+
+    vault = read_json_file(STORAGE_FILE)
+    if device_id not in vault:
+        return jsonify({"status": "error", "message": "Device not found."}), 404
+
+    user = vault[device_id]
+
+    if coin_delta is not None:
+        try:
+            delta = int(coin_delta)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "message": "Invalid coin_delta."}), 400
+        new_balance = max(user.get("coin_balance", 0) + delta, 0)
+        user["coin_balance"] = new_balance
+
+    if trust_score is not None:
+        try:
+            ts = int(trust_score)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "message": "Invalid trust_score."}), 400
+        user["trust_score"] = max(min(ts, 100), 0)
+
+    write_json_file(STORAGE_FILE, vault)
+
+    return jsonify({
+        "status": "success",
+        "device_id": device_id,
+        "coin_balance": user["coin_balance"],
+        "trust_score": user["trust_score"]
+    })
+
+
 @app.route('/api/v1/admin/dashboard', methods=['GET'])
 def admin_dashboard():
     username = require_admin()
@@ -1107,6 +1157,7 @@ def admin_fulfill_payout():
     data = request.json or {}
     target_txn_id = data.get("transaction_id")
     utr_value = (data.get("utr") or data.get("transaction_reference") or data.get("redeem_code") or "").strip()
+    admin_message = (data.get("admin_message") or "").strip()
 
     if not target_txn_id or not utr_value:
         return jsonify({"status": "error", "message": "Missing transaction ID or payment reference."}), 400
@@ -1137,15 +1188,20 @@ def admin_fulfill_payout():
     target["paid_time"] = timestamp_string()
     target["completed_time"] = timestamp_string()
     target["utr"] = utr_value
+    if admin_message:
+        target["admin_reply"] = admin_message
     if str(target.get("payment_method", "")).upper() == "REDEEM CODE":
         target["redeem_code"] = utr_value
 
     write_json_file(LEDGER_FILE, ledger)
 
+    notif_message = f"Request {target_txn_id} has been completed. Reference: {utr_value}"
+    if admin_message:
+        notif_message += f"\nAdmin: {admin_message}"
     create_notification(
         target_txn_id,
         "Payment Sent Successfully",
-        f"Request {target_txn_id} has been completed. Reference: {utr_value}",
+        notif_message,
         "COMPLETED",
         f"Pack {target.get('tier_id', '?')}",
     )

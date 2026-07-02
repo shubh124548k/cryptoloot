@@ -56,7 +56,8 @@ data class TransactionRecord(
     val action: String = type,
     val previousBalance: Int? = null,
     val currentBalance: Int? = null,
-    val legacyDescription: String? = null
+    val legacyDescription: String? = null,
+    val adminReply: String? = null
 )
 
 data class RedeemRequestRecord(

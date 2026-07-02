@@ -1,25 +1,23 @@
 {
-    "verify-device-001": {
-        "master_uid": "KL-ZJPW-PXNL",
-        "coin_balance": 3400,
+    "116172e8c9bdc13a": {
+        "master_uid": "KL-FMBR-3V05",
+        "trust_score": 25,
+        "account_status": "ACTIVE",
+        "ads_today": 0,
+        "session_ads": 0,
+        "last_calendar_reset": "2026-07-02",
+        "coin_balance": 800,
+        "total_coins_earned": 500,
+        "total_ads_watched": 50,
+        "lifetime_coins": 500
+    },
+    "2a06d22dada272ac": {
+        "master_uid": "KL-S05Y-APRH",
+        "coin_balance": 8000,
         "trust_score": 100,
         "account_status": "ACTIVE",
         "ads_today": 0,
         "session_ads": 0,
-        "last_calendar_reset": "2026-07-01"
-    },
-    "2a06d22dada272ac": {
-        "master_uid": "KL-NBLO-0ZUU",
-        "coin_balance": 20,
-        "trust_score": 100,
-        "account_status": "ACTIVE",
-        "ads_today": 2,
-        "session_ads": 2,
-        "last_calendar_reset": "2026-07-01",
-        "lifetime_coins": 20,
-        "total_coins_earned": 20,
-        "total_ads_watched": 2,
-        "last_ad_timestamp": 1782919624,
-        "last_ad_duration": 30
+        "last_calendar_reset": "2026-07-02"
     }
 }

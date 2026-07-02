@@ -189,9 +189,14 @@ class RewardsRepository(
         val deviceId = prefs.deviceId
         return try {
             val remote = api.getRedemptions(deviceId)
+            Log.d("SYNC_TRACE", "getRedemptionHistory: API returned ${remote.size} items")
+            remote.forEachIndexed { i, item ->
+                Log.d("SYNC_TRACE", "getRedemptionHistory: item[$i] queue_id=${item.queue_id} status=${item.status} admin_reply='${item.admin_reply}' request_id=${item.request_id}")
+            }
             userRepo.mergeRemoteRedemptions(remote)
             remote
         } catch (e: Exception) {
+            Log.d("SYNC_TRACE", "getRedemptionHistory: EXCEPTION ${e::class.simpleName}: ${e.message}")
             emptyList()
         }
     }

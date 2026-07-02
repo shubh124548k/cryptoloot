@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -33,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.repository.RewardPackCatalog
 import android.util.Log
 import com.example.data.repository.RedeemDeliveryType
+import kotlinx.coroutines.delay
 import com.example.ui.components.*
 import com.example.ui.theme.*
 
@@ -230,249 +234,14 @@ fun CoinsScreen(
                     },
                     actionEnabled = uiState.activeRedeemStatus == null,
                     onRedeem = {
-                        Log.d("TRACE", "BUTTON_CLICK CoinsScreen.onRedeem selectedPack=${pack.name} selectedCoins=${pack.requiredCoins}")
+                        Log.e("REDEEM_TRACE", "STEP_01_TAP onRedeem pack=${pack.name} coins=${pack.requiredCoins}")
                         viewModel.openConfirmDialog(pack.requiredCoins, pack.rewardAmount.toFloat(), pack)
                     },
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
             
-            // Transaction history header
-            item {
-                Text(
-                    text = "TRANSACTION HISTORY",
-                    color = NeonCyan,
-                    fontSize = 12.sp,
-                    fontFamily = RajdhaniFamily,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.1.sp,
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp)
-                )
-            }
-            
-            // History list
-            if (uiState.historyList.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 24.dp)
-                            .background(CardSurface, RoundedCornerShape(12.dp))
-                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No redemptions submitted yet. Earn 300 coins to redeem! 🏆",
-                            color = TextSecondary,
-                            fontSize = 13.sp,
-                            fontFamily = InterFamily,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            } else {
-                items(uiState.historyList) { item ->
-                    var isExpanded by remember { mutableStateOf(false) }
-                    
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(CardSurface)
-                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                            .clickable { isExpanded = !isExpanded }
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                val transactionIcon = when (item.transaction_type) {
-                                    "WATCH_REWARD", "COIN_BONUS" -> Icons.Default.Paid
-                                    "REDEEM_REQUEST", "REDEEM_PROCESSING" -> Icons.Default.HourglassTop
-                                    "REDEEM_APPROVED", "QUEUE_COMPLETED" -> Icons.Default.CheckCircle
-                                    "REDEEM_REJECTED" -> Icons.Default.Cancel
-                                    else -> Icons.Default.SwapHoriz
-                                }
-                                Icon(
-                                    imageVector = transactionIcon,
-                                    contentDescription = item.transaction_type,
-                                    tint = when (item.transaction_type) {
-                                        "WATCH_REWARD", "COIN_BONUS" -> NeonGreen
-                                        "REDEEM_REQUEST", "REDEEM_PROCESSING" -> NeonYellow
-                                        "REDEEM_APPROVED", "QUEUE_COMPLETED" -> NeonCyan
-                                        "REDEEM_REJECTED" -> NeonRed
-                                        else -> TextSecondary
-                                    },
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "Request #${item.request_id}",
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontFamily = JetBrainsMonoFamily,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "${item.transaction_type} • ${item.coin_cost} Coins → ₹${String.format("%.2f", item.payout_value)}",
-                                        color = TextSecondary,
-                                        fontSize = 13.sp,
-                                        fontFamily = InterFamily
-                                    )
-                                }
-                            }
-                            
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val statusColor = when (item.status) {
-                                    "PENDING" -> NeonYellow
-                                    "COMPLETED" -> NeonGreen
-                                    else -> NeonRed
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .background(statusColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                        .border(1.dp, statusColor, RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = item.status,
-                                        color = statusColor,
-                                        fontSize = 10.sp,
-                                        fontFamily = RajdhaniFamily,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
-                                    contentDescription = "Expand",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        
-                        // Expandable details with code
-                        AnimatedVisibility(visible = isExpanded) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 12.dp)
-                            ) {
-                                HorizontalDivider(color = CardBorder, modifier = Modifier.padding(bottom = 12.dp))
-                                Text(
-                                    text = "Submitted at: ${item.created_at}",
-                                    color = TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontFamily = InterFamily
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Type: ${item.transaction_type}",
-                                    color = NeonCyan,
-                                    fontSize = 12.sp,
-                                    fontFamily = RajdhaniFamily,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Coins: ${item.coins_before} → ${item.coins_after}",
-                                    color = TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontFamily = InterFamily
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Description: ${item.description.ifEmpty { "No description available." }}",
-                                    color = TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontFamily = InterFamily,
-                                    lineHeight = 16.sp
-                                )
-                                if (item.queue_id != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Queue ID: ${item.queue_id}",
-                                        color = NeonCyan,
-                                        fontSize = 12.sp,
-                                        fontFamily = JetBrainsMonoFamily,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                if (item.status == "COMPLETED" && item.code_value != null) {
-                                    Text(
-                                        text = "COMPLETED ✅",
-                                        color = NeonGreen,
-                                        fontSize = 12.sp,
-                                        fontFamily = RajdhaniFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(CardSurface2, RoundedCornerShape(8.dp))
-                                            .border(1.dp, NeonGreen, RoundedCornerShape(8.dp))
-                                            .padding(12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text(
-                                                text = "REDEEM CODE",
-                                                color = NeonGreen,
-                                                fontSize = 10.sp,
-                                                fontFamily = RajdhaniFamily,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = item.code_value,
-                                                color = Color.White,
-                                                fontSize = 16.sp,
-                                                fontFamily = JetBrainsMonoFamily,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                        TextButton(
-                                            onClick = {
-                                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                val clip = ClipData.newPlainText("code", item.code_value)
-                                                clipboard.setPrimaryClip(clip)
-                                                Toast.makeText(context, "Code copied to clipboard!", Toast.LENGTH_SHORT).show()
-                                            }
-                                        ) {
-                                            Text("COPY REDEEM CODE", color = NeonCyan, fontFamily = RajdhaniFamily, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                } else if (item.status == "PENDING") {
-                                    Text(
-                                        text = "STATUS: VERIFYING LEDGER ⏳",
-                                        color = NeonYellow,
-                                        fontSize = 12.sp,
-                                        fontFamily = RajdhaniFamily,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Fulfillment: Your reward code will be visible here once approved by our team (usually in under 24 hours). Check back soon!",
-                                        color = TextMuted,
-                                        fontSize = 11.sp,
-                                        fontFamily = InterFamily,
-                                        lineHeight = 16.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+
             
             item {
                 val infiniteTransition = rememberInfiniteTransition()
@@ -635,15 +404,78 @@ fun CoinsScreen(
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         if (uiState.paymentErrorMessage != null) {
-                            Text(
-                                text = uiState.paymentErrorMessage.orEmpty(),
-                                color = NeonRed,
-                                fontSize = 12.sp,
-                                fontFamily = InterFamily,
-                                textAlign = TextAlign.Center
+                            LaunchedEffect(uiState.paymentErrorMessage) {
+                                delay(5000L)
+                                viewModel.clearError()
+                            }
+                            val errorAlpha by animateFloatAsState(
+                                targetValue = 1f,
+                                animationSpec = tween(400),
+                                label = "errorAlpha"
                             )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .graphicsLayer(alpha = errorAlpha)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color(0xCC1A1A2E),
+                                                Color(0xCC12121F)
+                                            )
+                                        )
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(NeonRed.copy(alpha = 0.8f), NeonRed.copy(alpha = 0.2f))
+                                        ),
+                                        shape = RoundedCornerShape(14.dp)
+                                    )
+                                    .padding(16.dp)
+                            ) {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = "Error",
+                                            tint = NeonRed,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "REDEEM ERROR",
+                                            color = NeonRed,
+                                            fontSize = 14.sp,
+                                            fontFamily = RajdhaniFamily,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = uiState.paymentErrorMessage.orEmpty(),
+                                        color = TextSecondary,
+                                        fontSize = 13.sp,
+                                        fontFamily = InterFamily,
+                                        lineHeight = 18.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "DISMISS",
+                                        color = NeonCyan,
+                                        fontSize = 11.sp,
+                                        fontFamily = RajdhaniFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .align(Alignment.End)
+                                            .clickable { viewModel.clearError() }
+                                    )
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -658,7 +490,7 @@ fun CoinsScreen(
                             NeonButton(
                                 text = "CONFIRM ⚡",
                                 onClick = {
-                                    Log.d("TRACE", "BUTTON_CLICK CoinsScreen confirm button")
+                                    Log.e("REDEEM_TRACE", "STEP_02_CONFIRM CONFIRM button tapped")
                                     viewModel.executeRedemption()
                                 },
                                 modifier = Modifier.weight(1.5f)

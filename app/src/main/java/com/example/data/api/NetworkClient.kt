@@ -47,6 +47,7 @@ object NetworkClient {
     val api: KryptoLootApi
         get() {
             if (_api == null) {
+                Log.e("REDEEM_TRACE", "STEP_09A_RETROFIT creating Retrofit with BASE_URL=$ACTIVE_BASE_URL")
                 _api = Retrofit.Builder()
                     .baseUrl(ACTIVE_BASE_URL)
                     .addConverterFactory(MoshiConverterFactory.create(moshi))

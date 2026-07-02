@@ -36,6 +36,10 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.*
 import com.example.ui.theme.*
 import com.kryptoloot.app.BuildConfig
+import com.example.data.api.DebugAdjustRequest
+import com.example.data.api.NetworkClient
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun ProfileScreen(
@@ -60,7 +64,6 @@ fun ProfileScreen(
     lastTransactionTime: String?,
     averageCoinsPerReward: Float,
     onRecoverUid: (String, (Boolean, String) -> Unit) -> Unit,
-    onAddCoins: (Int) -> Unit,
     onResetRedeemData: () -> Unit,
     onResetNotifications: () -> Unit,
     onResetApp: () -> Unit,
@@ -691,76 +694,37 @@ fun ProfileScreen(
                 HorizontalDivider(color = CardBorder)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (BuildConfig.DEBUG) {
-                    Text(
-                        text = "DEBUG QA PANEL",
-                        color = NeonPink,
-                        fontSize = 12.sp,
-                        fontFamily = RajdhaniFamily,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.2.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    listOf(
-                        300 to "+300 Coins",
-                        700 to "+700 Coins",
-                        1500 to "+1500 Coins",
-                        7000 to "+7000 Coins"
-                    ).chunked(2).forEach { rowButtons ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            rowButtons.forEach { (amount, label) ->
-                                Button(
-                                    onClick = { onAddCoins(amount) },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = NeonPurple,
-                                        contentColor = Color.White
-                                    ),
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Text(text = label, fontSize = 12.sp, fontFamily = RajdhaniFamily)
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onResetRedeemData,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonOrange,
+                            contentColor = Color.Black
+                        ),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Button(
-                            onClick = onResetRedeemData,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = NeonOrange,
-                                contentColor = Color.Black
-                            ),
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(text = "Reset Redeem Data", fontSize = 12.sp, fontFamily = RajdhaniFamily)
-                        }
-                        Button(
-                            onClick = onResetNotifications,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = NeonCyan,
-                                contentColor = Color.Black
-                            ),
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(text = "Reset Notifications", fontSize = 12.sp, fontFamily = RajdhaniFamily)
-                        }
+                        Text(text = "Reset Redeem Data", fontSize = 12.sp, fontFamily = RajdhaniFamily)
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = CardBorder)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onResetNotifications,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonCyan,
+                            contentColor = Color.Black
+                        ),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = "Reset Notifications", fontSize = 12.sp, fontFamily = RajdhaniFamily)
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = CardBorder)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Clear Cache
                 Text(
@@ -793,6 +757,86 @@ fun ProfileScreen(
                         .clickable { onResetApp() }
                         .padding(vertical = 4.dp)
                 )
+
+                if (BuildConfig.DEBUG) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = CardBorder)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val debugScope = rememberCoroutineScope()
+                    var debugMessage by remember { mutableStateOf<String?>(null) }
+
+                    Text(
+                        text = "DEBUG PANEL",
+                        color = NeonGreen,
+                        fontSize = 14.sp,
+                        fontFamily = RajdhaniFamily,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    fun adjustDebug(coinDelta: Int? = null, trustScore: Int? = null) {
+                        debugScope.launch {
+                            try {
+                                val resp = NetworkClient.api.debugAdjust(
+                                    DebugAdjustRequest(
+                                        device_id = deviceId,
+                                        coin_delta = coinDelta,
+                                        trust_score = trustScore
+                                    )
+                                )
+                                debugMessage = "OK: balance=${resp.coin_balance} trust=${resp.trust_score}"
+                                onResetApp()
+                            } catch (e: Exception) {
+                                debugMessage = "ERR: ${e.message}"
+                            }
+                        }
+                    }
+
+                    debugMessage?.let {
+                        Text(
+                            text = it,
+                            color = if (it.startsWith("OK")) NeonGreen else NeonRed,
+                            fontSize = 11.sp,
+                            fontFamily = JetBrainsMonoFamily,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            Triple("+300", 300, null),
+                            Triple("+700", 700, null),
+                            Triple("+1500", 1500, null),
+                            Triple("+7000", 7000, null)
+                        ).forEach { (label, delta, _) ->
+                            NeonButton(
+                                text = label,
+                                onClick = { adjustDebug(coinDelta = delta) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        NeonButton(
+                            text = "Reset Coins",
+                            onClick = { adjustDebug(coinDelta = -userCoins) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        NeonButton(
+                            text = "Reset Trust",
+                            onClick = { adjustDebug(trustScore = 100) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
         }
     }

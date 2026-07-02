@@ -10,6 +10,7 @@ import com.example.data.repository.RedeemQueueEntry
 import com.example.data.repository.RewardPack
 import com.example.data.repository.RewardPackCatalog
 import com.example.data.repository.RewardsRepository
+import com.example.data.repository.TransactionType
 import com.example.data.repository.UserRepository
 import kotlinx.coroutines.Job
 import android.util.Log
@@ -56,17 +57,35 @@ class CoinsViewModel(
     private val _uiState = MutableStateFlow(CoinsUiState())
     val uiState: StateFlow<CoinsUiState> = _uiState.asStateFlow()
 
+    private val _focusedRequestId = MutableStateFlow<Int?>(null)
+    val focusedRequestId: StateFlow<Int?> = _focusedRequestId.asStateFlow()
+
+    fun focusRequest(id: Int?) {
+        _focusedRequestId.value = id
+    }
+
+    fun consumeFocus() {
+        _focusedRequestId.value = null
+    }
+
     private var redeemJob: Job? = null
     private var selectedPack: RewardPack? = null
 
     init {
         userRepo.appState.onEach { snapshot ->
+            val redemptionItems = snapshot.transactionHistory.filter {
+                it.transactionType == TransactionType.QUEUE_COMPLETED || it.transactionType == TransactionType.REDEEM_REQUEST
+            }
+            Log.d("SYNC_TRACE", "CoinsViewModel.onEach: snapshot.transactionHistory.size=${snapshot.transactionHistory.size} redemptionItems=$redemptionItems")
+            redemptionItems.forEach { tx ->
+                Log.d("SYNC_TRACE", "CoinsViewModel.onEach:   tx queueId=${tx.queueId} type=${tx.transactionType.name} status=${tx.status} adminReply='${tx.adminReply}'")
+            }
             _uiState.update {
                 it.copy(
                     coinBalance = snapshot.coinBalance,
                     historyList = snapshot.transactionHistory.map { tx ->
                         RedemptionHistoryItem(
-                            request_id = tx.id.filter { it.isDigit() }.toIntOrNull() ?: 0,
+                            request_id = tx.id.substringAfter("txn-").substringBefore("-").toIntOrNull() ?: tx.queueId?.filter { it.isDigit() }?.toIntOrNull() ?: 0,
                             coin_cost = tx.amount,
                             payout_value = tx.cashAmount ?: tx.rewardAmount?.toFloat() ?: 0f,
                             status = tx.status,
@@ -82,7 +101,8 @@ class CoinsViewModel(
                             server_synced = tx.serverSyncFlag,
                             version_number = tx.versionNumber,
                             reward_name = tx.rewardPack ?: tx.rewardName,
-                            cash_amount = tx.cashAmount ?: tx.rewardAmount?.toFloat()
+                            cash_amount = tx.cashAmount ?: tx.rewardAmount?.toFloat(),
+                            admin_reply = tx.adminReply
                         )
                     },
                     rewardPacks = RewardPackCatalog.fromBalance(snapshot.coinBalance),
@@ -111,20 +131,30 @@ class CoinsViewModel(
                     pendingRedeemCount = snapshot.redeemStats.pendingCount
                 )
             }
+            val currentHistory = _uiState.value.historyList
+            Log.d("SYNC_TRACE", "CoinsViewModel.onEach: AFTER UPDATE historyList.size=${currentHistory.size}")
+            currentHistory.forEach { item ->
+                Log.d("SYNC_TRACE", "CoinsViewModel.onEach:   history item queue_id=${item.queue_id} type=${item.transaction_type} status=${item.status} admin_reply='${item.admin_reply}'")
+            }
         }.launchIn(viewModelScope)
         loadData()
     }
 
     fun loadData() {
+        Log.d("SYNC_TRACE", "loadData: CALLED")
         _uiState.update { it.copy(coinBalance = userRepo.getLocalCoins(), isLoading = true) }
         viewModelScope.launch {
+            Log.d("SYNC_TRACE", "loadData: coroutine started, calling getRedemptionHistory()")
             try {
-                withTimeoutOrNull(8000L) { rewardsRepo.getRedemptionHistory() }
+                val result = withTimeoutOrNull(8000L) { rewardsRepo.getRedemptionHistory() }
+                Log.d("SYNC_TRACE", "loadData: getRedemptionHistory returned result=${if (result == null) "TIMEOUT" else "list(${result.size})"}")
                 userRepo.refreshFromPreferences()
+                Log.d("SYNC_TRACE", "loadData: after refreshFromPreferences, current historyList size=${_uiState.value.historyList.size}")
                 _uiState.update {
                     it.copy(isLoading = false)
                 }
             } catch (e: TimeoutCancellationException) {
+                Log.d("SYNC_TRACE", "loadData: TIMEOUT exception: ${e.message}")
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -132,6 +162,7 @@ class CoinsViewModel(
                     )
                 }
             } catch (e: Exception) {
+                Log.d("SYNC_TRACE", "loadData: EXCEPTION ${e::class.simpleName}: ${e.message}")
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -145,9 +176,12 @@ class CoinsViewModel(
     }
 
     fun openConfirmDialog(coins: Int, payout: Float, pack: RewardPack? = null) {
-        if (redeemJob?.isActive == true) return
+        if (redeemJob?.isActive == true) {
+            Log.e("REDEEM_TRACE", "STEP_03_REJECTED openConfirmDialog blocked: redeemJob active")
+            return
+        }
         selectedPack = pack
-        Log.d("TRACE", "CoinsViewModel.openConfirmDialog selectedPack=${pack?.name} selectedCoins=$coins")
+        Log.e("REDEEM_TRACE", "STEP_03_OPEN openConfirmDialog pack=${pack?.name} coins=$coins payout=$payout")
         _uiState.update {
             it.copy(
                 showConfirmDialog = true,
@@ -184,11 +218,15 @@ class CoinsViewModel(
     }
 
     fun executeRedemption() {
-        Log.d("TRACE", "VIEWMODEL_START CoinsViewModel.executeRedemption")
+        Log.e("REDEEM_TRACE", "STEP_04_ENTRY executeRedemption() called")
         val coins = _uiState.value.selectedCoins
-        if (coins <= 0 || redeemJob?.isActive == true) return
+        if (coins <= 0 || redeemJob?.isActive == true) {
+            Log.e("REDEEM_TRACE", "STEP_04_REJECTED coins=$coins redeemJobActive=${redeemJob?.isActive}")
+            return
+        }
         val pack = selectedPack
         if (pack == null) {
+            Log.e("REDEEM_TRACE", "STEP_04_REJECTED selectedPack=null")
             _uiState.update { it.copy(ratesError = "Selected reward pack is unavailable.") }
             return
         }
@@ -199,16 +237,19 @@ class CoinsViewModel(
             deliveryType = _uiState.value.paymentDeliveryType,
             redeemCode = _uiState.value.paymentRedeemCode
         )
+        Log.e("REDEEM_TRACE", "STEP_05_DESTINATION upi=${destination.upiId} mobile=${destination.mobileNumber} type=${destination.deliveryType}")
 
         redeemJob?.cancel()
         _uiState.update { it.copy(isLoading = true, showConfirmDialog = false) }
         redeemJob = viewModelScope.launch {
-            Log.e("TRACE", "CoinsViewModel.executeRedemption selectedPack=${pack?.name} selectedCoins=$coins")
-            try {
-                val paymentResult = paymentRepo.submitRedeem(destination, pack, coins)
-                Log.d("TRACE", "CoinsViewModel.executeRedemption paymentResult.success=${paymentResult.success} message=${paymentResult.message}")
-                Log.d("TRACE", "CoinsViewModel.executeRedemption paymentResult.payment?.transactionId=${paymentResult.payment?.transactionId}")
+                Log.e("REDEEM_TRACE", "STEP_06_COROUTINE launched: pack=${pack.name} coins=$coins")
+                try {
+                    val currentBalance = userRepo?.getLocalCoins() ?: 0
+                    Log.e("REDEEM_TRACE", "STEP_07_BEFORE_API localBalance=$currentBalance calling paymentRepo.submitRedeem()")
+                    val paymentResult = paymentRepo.submitRedeem(destination, pack, coins)
+                Log.e("REDEEM_TRACE", "STEP_10_RESULT received: success=${paymentResult.success} message=${paymentResult.message} txnId=${paymentResult.payment?.transactionId} backendTxnId=${paymentResult.backendTransactionId} backendRequestId=${paymentResult.backendRequestId}")
                 if (!paymentResult.success) {
+                    Log.e("REDEEM_TRACE", "STEP_11_FAIL showing error to user: ${paymentResult.message}")
                     _uiState.update {
                         it.copy(
                             isLoading = false,
@@ -216,17 +257,26 @@ class CoinsViewModel(
                             ratesError = paymentResult.message
                         )
                     }
+                    if (paymentResult.message?.contains("insufficient", ignoreCase = true) == true) {
+                        Log.e("REDEEM_TRACE", "STEP_11A_INSUFFICIENT refreshing balance from server")
+                        try {
+                            userRepo.performDeviceHandshake()
+                        } catch (_: Exception) {}
+                    }
                     return@launch
                 }
 
                 val successMessage = paymentResult.message
                 val status = if (paymentResult.success) "PENDING" else "REJECTED"
-                Log.d("TRACE", "CoinsViewModel.executeRedemption setting success state before backend confirmation? successMessage=$successMessage")
+                Log.e("REDEEM_TRACE", "STEP_12_SUCCESS showing success to user: message=$successMessage status=$status backendRequestId=${paymentResult.backendRequestId} backendTxnId=${paymentResult.backendTransactionId}")
+                val backendDisplayId = paymentResult.backendRequestId?.take(9)
+                    ?: paymentResult.backendTransactionId?.filter { it.isDigit() }?.take(9)
+                    ?: "0"
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         redemptionSuccessMessage = successMessage,
-                        createdRequestId = paymentResult.payment?.id?.filter { it.isDigit() }?.toIntOrNull(),
+                        createdRequestId = backendDisplayId.toIntOrNull(),
                         successStatus = status,
                         coinBalance = userRepo.getLocalCoins(),
                         paymentErrorMessage = null
@@ -234,12 +284,14 @@ class CoinsViewModel(
                 }
                 loadData()
             } catch (e: TimeoutCancellationException) {
+                Log.e("REDEEM_TRACE", "STEP_13_TIMEOUT exception: ${e.message}")
                 _uiState.update {
                     it.copy(
                         ratesError = "Timed out while processing redemption request."
                     )
                 }
             } catch (e: Exception) {
+                Log.e("REDEEM_TRACE", "STEP_13_EXCEPTION type=${e::class.simpleName} message=${e.message}")
                 _uiState.update {
                     it.copy(
                         isLoading = false,

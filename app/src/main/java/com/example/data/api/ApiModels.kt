@@ -100,7 +100,8 @@ data class RedemptionHistoryItem(
     val server_synced: Boolean = false,
     val version_number: Int = 1,
     val reward_name: String? = null,
-    val cash_amount: Float? = null
+    val cash_amount: Float? = null,
+    val admin_reply: String? = null
 )
 
 data class DeviceHandshakeRequest(
@@ -134,4 +135,17 @@ data class UidRecoveryResponse(
     val ads_today: Int?,
     val session_ads: Int?,
     val break_until: String?
+)
+
+data class DebugAdjustRequest(
+    val device_id: String,
+    val coin_delta: Int? = null,
+    val trust_score: Int? = null
+)
+
+data class DebugAdjustResponse(
+    val status: String,
+    val device_id: String,
+    val coin_balance: Int,
+    val trust_score: Int
 )

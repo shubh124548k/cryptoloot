@@ -58,9 +58,12 @@ import com.example.data.repository.SyncRepository
 import com.example.data.repository.TransactionRepository
 import com.example.data.repository.UserRepository
 import com.example.ui.components.BottomNavBar
+import com.example.ui.components.NotificationBell
+import com.example.ui.components.NotificationPanel
 import com.example.ui.components.threeDTiltEffect
 import com.example.ui.screens.coins.CoinsScreen
 import com.example.ui.screens.coins.CoinsViewModel
+import com.example.ui.screens.history.HistoryScreen
 import com.example.ui.screens.home.HomeScreen
 import com.example.ui.screens.home.HomeViewModel
 import com.example.ui.screens.leaderboard.LeaderboardScreen
@@ -286,6 +289,7 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("home_dashboard") {
                         var currentTab by remember { mutableStateOf("home") }
+                        var showNotifications by remember { mutableStateOf(false) }
                         val coroutineScope = rememberCoroutineScope()
                         
                         val isAdReady by _isAdReady.collectAsState()
@@ -303,13 +307,14 @@ class MainActivity : ComponentActivity() {
                                             currentTab = route
                                             if (route == "home") homeViewModel.refreshData()
                                             if (route == "coins") coinsViewModel.loadData()
+                                            if (route == "history") coinsViewModel.loadData()
                                             if (route == "leaderboard") leaderboardViewModel.loadLeaderboard()
                                         }
                                     )
                                 }
                             }
                         ) { innerPadding ->
-                            Box(modifier = Modifier.padding(innerPadding)) {
+                            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                                 when (currentTab) {
                                     "home" -> {
                                         HomeScreen(
@@ -345,6 +350,14 @@ class MainActivity : ComponentActivity() {
                                     }
                                     "coins" -> {
                                         CoinsScreen(viewModel = coinsViewModel)
+                                    }
+                                    "history" -> {
+                                        val focusId by coinsViewModel.focusedRequestId.collectAsState()
+                                        HistoryScreen(
+                                            coinsViewModel = coinsViewModel,
+                                            focusedRequestId = focusId,
+                                            onFocusConsumed = { coinsViewModel.consumeFocus() }
+                                        )
                                     }
                                     "leaderboard" -> {
                                         LeaderboardScreen(viewModel = leaderboardViewModel)
@@ -384,10 +397,6 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 }
                                             },
-                                            onAddCoins = { amount ->
-                                                userRepo.adjustCoins(amount)
-                                                Toast.makeText(applicationContext, "Added $amount coins", Toast.LENGTH_SHORT).show()
-                                            },
                                             onResetRedeemData = {
                                                 paymentRepo.clearAllPayments()
                                                 Toast.makeText(applicationContext, "Redeem data reset", Toast.LENGTH_SHORT).show()
@@ -406,12 +415,36 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 12.dp, end = 16.dp)
+                            ) {
+                                NotificationBell(
+                                    notificationRepo = notificationRepo,
+                                    onClick = { showNotifications = true }
+                                )
+                            }
+                            if (showNotifications) {
+                                NotificationPanel(
+                                    notificationRepo = notificationRepo,
+                                    onDismiss = { showNotifications = false },
+                                    onNotificationClick = { item ->
+                                        showNotifications = false
+                                        if (item.relatedId != null) {
+                                            val idDigits = item.relatedId.filter { it.isDigit() }.toIntOrNull()
+                                            if (idDigits != null) {
+                                                coinsViewModel.focusRequest(idDigits)
+                                            }
+                                            currentTab = "history"
+                                        }
+                                    }
+                                )
+                            }
                             }
                         }
                     }
-
-                    
-                    }
+                }
             }
         }
     }

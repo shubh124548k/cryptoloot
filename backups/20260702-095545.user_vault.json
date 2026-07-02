@@ -1,0 +1,25 @@
+{
+    "verify-clean-0001": {
+        "master_uid": "KL-CLN-7X9Z",
+        "coin_balance": 150,
+        "trust_score": 100,
+        "account_status": "ACTIVE",
+        "ads_today": 0,
+        "session_ads": 0,
+        "last_calendar_reset": "2026-07-02",
+        "lifetime_coins": 450,
+        "total_coins_earned": 450,
+        "total_ads_watched": 45,
+        "last_ad_timestamp": 1782961445,
+        "last_ad_duration": 22
+    },
+    "116172e8c9bdc13a": {
+        "master_uid": "KL-FMBR-3V05",
+        "coin_balance": 0,
+        "trust_score": 50,
+        "account_status": "ACTIVE",
+        "ads_today": 0,
+        "session_ads": 0,
+        "last_calendar_reset": "2026-07-02"
+    }
+}

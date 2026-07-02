@@ -1,0 +1,24 @@
+[
+    {
+        "transaction_id": "TXN-1782961471-GZV",
+        "device_id": "verify-clean-0001",
+        "master_uid": "KL-CLN-7X9Z",
+        "username": "KL-CLN-7X9Z",
+        "tier_id": "1",
+        "coins": 300,
+        "payout_value_rupees": 10,
+        "status": "COMPLETED",
+        "redeem_code": "PROCESSING_BY_ADMIN",
+        "payment_method": "UPI",
+        "upi_id": "user@paytm",
+        "mobile_number": null,
+        "redeem_code_value": null,
+        "timestamp": "2026-07-02T08:34:31.978404+05:30",
+        "updated_at": "2026-07-02T08:35:13.893713+05:30",
+        "approved_by": "subhendugupta124548k",
+        "paid_by": "subhendugupta124548k",
+        "paid_time": "2026-07-02 08:35:13",
+        "completed_time": "2026-07-02 08:35:13",
+        "utr": "HDFC25072026"
+    }
+]

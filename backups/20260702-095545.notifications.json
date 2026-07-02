@@ -1,0 +1,32 @@
+[
+    {
+        "id": "notif-TXN-1782961471-GZV-completed",
+        "request_id": "TXN-1782961471-GZV",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782961471-GZV has been completed. Reference: HDFC25072026",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 1",
+        "timestamp": "2026-07-02 08:35:13",
+        "is_read": false
+    },
+    {
+        "id": "notif-1782961471-processing",
+        "request_id": "1782961471",
+        "title": "Payment Processing",
+        "message": "Request 1782961471 is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 1",
+        "timestamp": "2026-07-02 08:35:01",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782961471-GZV-pending",
+        "request_id": "TXN-1782961471-GZV",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782961471-GZV is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Bronze Pack",
+        "timestamp": "2026-07-02 08:34:31",
+        "is_read": false
+    }
+]

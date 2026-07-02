@@ -145,15 +145,18 @@ class RedeemPaymentRepository(
         }
     }
 
-    fun submitRedeem(
+    suspend fun submitRedeem(
         destination: RedeemDestination,
         rewardPack: RewardPack,
         requestedCoins: Int
     ): PaymentSubmissionResult {
-        Log.e("TRACE", "REPOSITORY_START RedeemPaymentRepository.submitRedeem(destination)")
+        Log.e("REDEEM_TRACE", "STEP_07_REPO_ENTRY submitRedeem(destination) coins=$requestedCoins pack=${rewardPack.name}")
         val snapshot = userRepo?.getCurrentSnapshot() ?: AppSnapshot()
+        Log.e("REDEEM_TRACE", "STEP_08_SNAPSHOT balance=${snapshot.coinBalance} trust=${snapshot.trustScore} status=${snapshot.operationalStatus} userUid=${snapshot.userUid}")
         val validation = validateSubmission(snapshot, destination, rewardPack, requestedCoins)
+        Log.e("REDEEM_TRACE", "STEP_08_VALIDATION isValid=${validation.isValid} errors=[${validation.errors.joinToString("; ")}] message=${validation.message}")
         if (!validation.isValid) {
+            Log.e("REDEEM_TRACE", "STEP_08_VALIDATION_FAIL returning error to ViewModel: ${validation.message}")
             return PaymentSubmissionResult(
                 payment = null,
                 validation = validation,
@@ -163,110 +166,158 @@ class RedeemPaymentRepository(
         }
 
         val fraudReport = fraudRepository?.buildFraudReport(snapshot) ?: FraudReport()
-        val now = timestamp()
-        val payment = RedeemPayment(
-            id = "pay-${UUID.randomUUID().toString().take(8).uppercase(Locale.US)}",
-            orderId = "ORD-${System.currentTimeMillis()}",
-            userUid = snapshot.userUid.ifEmpty { userRepo?.getMasterUid().orEmpty() },
+
+        // Build the backend request FIRST
+        val deviceId = userRepo?.getDeviceId().orEmpty()
+        val req = RedeemRequest(
+            device_id = deviceId,
+            coins_to_redeem = requestedCoins,
             username = snapshot.displayName ?: snapshot.username,
-            rewardPack = rewardPack.name,
-            rewardPackId = rewardPack.id,
-            coinsRequired = requestedCoins,
-            cashAmount = rewardPack.rewardAmount.toFloat(),
-            upiId = destination.upiId?.trim()?.ifBlank { null },
-            mobileNumber = destination.mobileNumber?.trim()?.ifBlank { null },
-            deliveryType = destination.deliveryType,
-            redeemCode = destination.redeemCode?.trim()?.ifBlank { null },
-            trustScore = snapshot.trustScore,
-            fraudScore = fraudReport.trustScore,
-            fraudRisk = fraudReport.riskLevel.name,
-            createdAt = now,
-            updatedAt = now,
-            status = PaymentStatus.PENDING,
-            failureReason = null,
-            transactionId = null,
-            completedAt = null
-        )
-
-        Log.d("TRACE", "RedeemPaymentRepository.submitRedeem created payment.rewardPack=${payment.rewardPack} payment.coinsRequired=${payment.coinsRequired} payment.cashAmount=${payment.cashAmount}")
-
-        userRepo?.deductCoinsOffline(requestedCoins)
-        val afterBalance = userRepo?.getCurrentSnapshot()?.coinBalance ?: (snapshot.coinBalance - requestedCoins).coerceAtLeast(0)
-
-        val updated = readPayments().toMutableList().apply { add(0, payment) }
-        persistPayments(updated)
-        // Create or upsert a corresponding transaction record. Mask sensitive destinations.
-        val maskedDest = when (payment.deliveryType) {
-            RedeemDeliveryType.UPI -> payment.upiId?.let { maskMiddle(it) } ?: ""
-            RedeemDeliveryType.MOBILE -> payment.mobileNumber?.let { maskMobile(it) } ?: ""
-            RedeemDeliveryType.REDEEM_CODE -> payment.redeemCode?.let { it } ?: ""
-        }
-        val tx = TransactionRecord(
-            id = payment.id,
-            userUid = payment.userUid,
-            username = payment.username,
-            transactionType = TransactionType.REDEEM_REQUEST,
-            type = TransactionType.REDEEM_REQUEST.name,
-            coinsBefore = snapshot.coinBalance,
-            amount = payment.coinsRequired,
-            coinsChanged = -payment.coinsRequired,
-            coinsAfter = afterBalance,
-            rewardPack = payment.rewardPack,
-            cashAmount = payment.cashAmount,
-            queueId = payment.id,
-            status = "PENDING",
-            description = "Redeem payment submitted for ${payment.rewardPack} via ${destination.displayLabel()}",
-            timestamp = now,
-            completedTimestamp = null,
-            deviceId = snapshot.deviceId,
-            serverSyncFlag = false,
-            versionNumber = 1,
-            message = "Redeem request submitted via ${destination.displayLabel()}",
-            rewardName = payment.rewardPack,
-            rewardAmount = payment.coinsRequired,
-            packId = payment.rewardPackId,
-            updatedAt = now,
-            previousBalance = snapshot.coinBalance,
-            currentBalance = afterBalance,
-            legacyDescription = "Redeem payment submitted"
-        )
-        transactionRepository?.recordTransaction(tx) ?: userRepo?.recordTransaction(tx)
-        notificationRepo?.createNotification(
-            NotificationItem(
-                id = "pay-${payment.id}-${System.currentTimeMillis()}",
-                relatedId = payment.id,
-                title = "Redeem submitted",
-                message = "Request ID: ${payment.id}\nReward Pack: ${payment.rewardPack}\nStatus: PENDING\nTimestamp: $now",
-                timestamp = now,
-                priority = NotificationPriority.HIGH,
-                category = NotificationCategory.REDEEM,
-                actionType = NotificationType.COINS_REDEEMED.name,
-                sourceRepository = "REDEEM_PAYMENT_REPOSITORY",
-                severity = "INFO",
-                notificationType = NotificationType.REDEEM_APPROVED
-            )
-        )
-        userRepo?.refreshFromPreferences()
-        refreshFromSnapshot(snapshot)
-
-        scope.launch {
-            val syncedPayment = trySyncRedeem(payment)
-            if (syncedPayment != null && syncedPayment != payment) {
-                val cachedPayments = readPayments().toMutableList()
-                val index = cachedPayments.indexOfFirst { it.id == payment.id }
-                if (index >= 0) {
-                    cachedPayments[index] = syncedPayment
-                    persistPayments(cachedPayments)
-                }
+            reward_pack = rewardPack.name,
+            coins = requestedCoins,
+            cash_amount = rewardPack.rewardAmount.toFloat(),
+            payment_method = destination.deliveryType.displayLabel(),
+            payment_details = when (destination.deliveryType) {
+                RedeemDeliveryType.UPI -> destination.upiId
+                RedeemDeliveryType.MOBILE -> destination.mobileNumber
+                RedeemDeliveryType.REDEEM_CODE -> destination.redeemCode
             }
-        }
-
-        return PaymentSubmissionResult(
-            payment = payment,
-            validation = validation,
-            success = true,
-            message = "Redeem request submitted successfully."
         )
+
+        Log.e("REDEEM_TRACE", "STEP_09_HTTP_POST POST /api/v1/rewards/redeem device_id=${req.device_id} coins=${req.coins_to_redeem} method=${req.payment_method} details=${req.payment_details}")
+
+        // Call backend FIRST — only proceed on HTTP 200
+        return try {
+            val response = api.redeem(req)
+            Log.e("REDEEM_TRACE", "STEP_09_HTTP_OK HTTP 200 success=${response.success} transaction_id=${response.transaction_id} request_id=${response.request_id} status=${response.status} message=${response.message} coins_remaining=${response.coins_remaining}")
+
+            if (!response.success) {
+                Log.e("REDEEM_TRACE", "STEP_09_SERVER_REJECT server rejected: ${response.message}")
+                return PaymentSubmissionResult(
+                    payment = null,
+                    validation = validation,
+                    success = false,
+                    message = response.message.ifEmpty { "Redeem request rejected by server." }
+                )
+            }
+
+            // BACKEND CONFIRMED (HTTP 200, success=true) — now save locally
+            Log.e("REDEEM_TRACE", "STEP_09_BACKEND_CONFIRMED saving locally: transaction_id=${response.transaction_id}, request_id=${response.request_id}")
+            val now = timestamp()
+            val payment = RedeemPayment(
+                id = "pay-${UUID.randomUUID().toString().take(8).uppercase(Locale.US)}",
+                orderId = response.transaction_id,
+                userUid = snapshot.userUid.ifEmpty { userRepo?.getMasterUid().orEmpty() },
+                username = snapshot.displayName ?: snapshot.username,
+                rewardPack = rewardPack.name,
+                rewardPackId = rewardPack.id,
+                coinsRequired = requestedCoins,
+                cashAmount = rewardPack.rewardAmount.toFloat(),
+                upiId = destination.upiId?.trim()?.ifBlank { null },
+                mobileNumber = destination.mobileNumber?.trim()?.ifBlank { null },
+                deliveryType = destination.deliveryType,
+                redeemCode = destination.redeemCode?.trim()?.ifBlank { null },
+                trustScore = snapshot.trustScore,
+                fraudScore = fraudReport.trustScore,
+                fraudRisk = fraudReport.riskLevel.name,
+                createdAt = now,
+                updatedAt = now,
+                status = PaymentStatus.PENDING,
+                failureReason = null,
+                transactionId = response.transaction_id,
+                completedAt = null
+            )
+
+            // Deduct coins locally (AFTER backend confirmation)
+            userRepo?.deductCoinsOffline(requestedCoins)
+            val afterBalance = userRepo?.getCurrentSnapshot()?.coinBalance ?: (snapshot.coinBalance - requestedCoins).coerceAtLeast(0)
+            Log.e("TRACE", "COIN DEDUCTION: before=${snapshot.coinBalance}, deducted=$requestedCoins, after=$afterBalance")
+
+            // Save payment locally
+            val updated = readPayments().toMutableList().apply { add(0, payment) }
+            persistPayments(updated)
+            Log.e("TRACE", "PAYMENT SAVED LOCALLY: ${payment.id} -> backend txn=${response.transaction_id}")
+
+            val maskedDest = when (payment.deliveryType) {
+                RedeemDeliveryType.UPI -> payment.upiId?.let { maskMiddle(it) } ?: ""
+                RedeemDeliveryType.MOBILE -> payment.mobileNumber?.let { maskMobile(it) } ?: ""
+                RedeemDeliveryType.REDEEM_CODE -> payment.redeemCode?.let { it } ?: ""
+            }
+            val tx = TransactionRecord(
+                id = payment.id,
+                userUid = payment.userUid,
+                username = payment.username,
+                transactionType = TransactionType.REDEEM_REQUEST,
+                type = TransactionType.REDEEM_REQUEST.name,
+                coinsBefore = snapshot.coinBalance,
+                amount = payment.coinsRequired,
+                coinsChanged = -payment.coinsRequired,
+                coinsAfter = afterBalance,
+                rewardPack = payment.rewardPack,
+                cashAmount = payment.cashAmount,
+                queueId = payment.id,
+                status = "PENDING",
+                description = "Redeem payment submitted for ${payment.rewardPack} via ${destination.displayLabel()}",
+                timestamp = now,
+                completedTimestamp = null,
+                deviceId = snapshot.deviceId,
+                serverSyncFlag = true,
+                versionNumber = 1,
+                message = "Redeem request submitted via ${destination.displayLabel()}",
+                rewardName = payment.rewardPack,
+                rewardAmount = payment.coinsRequired,
+                packId = payment.rewardPackId,
+                updatedAt = now,
+                previousBalance = snapshot.coinBalance,
+                currentBalance = afterBalance,
+                legacyDescription = "Redeem payment submitted"
+            )
+            transactionRepository?.recordTransaction(tx) ?: userRepo?.recordTransaction(tx)
+            notificationRepo?.createNotification(
+                NotificationItem(
+                    id = "pay-${payment.id}-${System.currentTimeMillis()}",
+                    relatedId = payment.id,
+                    title = "Payment Under Review",
+                    message = "Payment is under review.\nRequest ID: ${response.request_id}\nReward Pack: ${payment.rewardPack}\nTimestamp: $now",
+                    timestamp = now,
+                    priority = NotificationPriority.HIGH,
+                    category = NotificationCategory.REDEEM,
+                    actionType = NotificationType.COINS_REDEEMED.name,
+                    sourceRepository = "REDEEM_PAYMENT_REPOSITORY",
+                    severity = "INFO",
+                    notificationType = NotificationType.REDEEM_APPROVED
+                )
+            )
+            userRepo?.refreshFromPreferences()
+            refreshFromSnapshot(snapshot)
+
+            Log.e("REDEEM_TRACE", "STEP_09_SAVED_LOCAL paymentId=${payment.id} returning success to ViewModel")
+            PaymentSubmissionResult(
+                payment = payment,
+                validation = validation,
+                success = true,
+                message = "Redeem request submitted successfully.",
+                backendRequestId = response.request_id?.toString() ?: response.transaction_id?.filter { it.isDigit() }?.take(9),
+                backendTransactionId = response.transaction_id
+            )
+        } catch (e: retrofit2.HttpException) {
+            val errorBody = try { e.response()?.errorBody()?.string() } catch (_: Exception) { null }
+            Log.e("REDEEM_TRACE", "STEP_09_HTTP_EXCEPTION HttpException code=${e.code()} body=$errorBody")
+            PaymentSubmissionResult(
+                payment = null,
+                validation = validation,
+                success = false,
+                message = "Server error (${e.code()}): ${errorBody ?: e.message()}"
+            )
+        } catch (e: Exception) {
+            Log.e("REDEEM_TRACE", "STEP_09_EXCEPTION type=${e::class.simpleName} message=${e.message}")
+            PaymentSubmissionResult(
+                payment = null,
+                validation = validation,
+                success = false,
+                message = "Unable to process redemption: ${e.message ?: "Check connectivity."}"
+            )
+        }
     }
 
     fun submitRedeem(payment: RedeemPayment): PaymentSubmissionResult {
@@ -728,55 +779,77 @@ class RedeemPaymentRepository(
         rewardPack: RewardPack,
         requestedCoins: Int
     ): PaymentValidation {
+        Log.e("REDEEM_TRACE", "STEP_08A_VALIDATE balance=${snapshot.coinBalance} requested=$requestedCoins trust=${snapshot.trustScore} status=${snapshot.operationalStatus} dest=${destination.deliveryType}")
         val errors = mutableListOf<String>()
         val availablePack = RewardPackCatalog.fromBalance(snapshot.coinBalance).firstOrNull { it.id == rewardPack.id }
         if (availablePack == null) {
+            Log.e("REDEEM_TRACE", "STEP_08A_CHECK pack_unavailable: coinBalance=${snapshot.coinBalance} packId=${rewardPack.id}")
             errors += "Reward pack is unavailable."
         }
         if (requestedCoins <= 0) {
+            Log.e("REDEEM_TRACE", "STEP_08A_CHECK coins_zero_or_negative: requestedCoins=$requestedCoins")
             errors += "Coins must be greater than zero."
         }
         if (requestedCoins != rewardPack.requiredCoins) {
+            Log.e("REDEEM_TRACE", "STEP_08A_CHECK coins_mismatch: requestedCoins=$requestedCoins packRequired=${rewardPack.requiredCoins}")
             errors += "Requested coin amount does not match the selected reward pack."
         }
         if (snapshot.coinBalance < requestedCoins) {
+            Log.e("REDEEM_TRACE", "STEP_08A_CHECK insufficient_balance: balance=${snapshot.coinBalance} requested=$requestedCoins")
             errors += "Insufficient coin balance."
         }
         if (snapshot.operationalStatus != "ACTIVE") {
+            Log.e("REDEEM_TRACE", "STEP_08A_CHECK account_inactive: status=${snapshot.operationalStatus}")
             errors += "User account is not active."
         }
         if (!destination.isValid()) {
+            Log.e("REDEEM_TRACE", "STEP_08A_CHECK invalid_dest: upi=${destination.upiId} mobile=${destination.mobileNumber} type=${destination.deliveryType}")
             errors += "Provide a valid ${destination.deliveryType.name.lowercase(Locale.US)} destination."
         }
-        if (snapshot.trustScore < 70) {
-            errors += "Trust score is below the required threshold."
+        if (!com.kryptoloot.app.BuildConfig.DEBUG) {
+            if (snapshot.trustScore < 70) {
+                Log.e("REDEEM_TRACE", "STEP_08A_CHECK trust_low: trust=${snapshot.trustScore} required=70")
+                errors += "Trust score is below the required threshold."
+            }
+            val pendingDuplicates = readPayments().count { it.status == PaymentStatus.PENDING && it.rewardPackId == rewardPack.id }
+            if (pendingDuplicates > 0) {
+                Log.e("REDEEM_TRACE", "STEP_08A_CHECK pending_duplicate: count=$pendingDuplicates")
+                errors += "A pending redeem for this reward already exists."
+            }
         }
         val fraudReport = fraudRepository?.buildFraudReport(snapshot) ?: FraudReport()
-        if (fraudReport.riskLevel == FraudRiskLevel.HIGH || fraudReport.riskLevel == FraudRiskLevel.CRITICAL) {
-            errors += "Fraud risk is too high for this request."
+        if (!com.kryptoloot.app.BuildConfig.DEBUG) {
+            if (fraudReport.riskLevel == FraudRiskLevel.HIGH || fraudReport.riskLevel == FraudRiskLevel.CRITICAL) {
+                Log.e("REDEEM_TRACE", "STEP_08A_CHECK fraud_high: risk=${fraudReport.riskLevel}")
+                errors += "Fraud risk is too high for this request."
+            }
         }
-        val pendingDuplicates = readPayments().count { it.status == PaymentStatus.PENDING && it.rewardPackId == rewardPack.id }
-        if (pendingDuplicates > 0) {
-            errors += "A pending redeem for this reward already exists."
+        if (!com.kryptoloot.app.BuildConfig.DEBUG) {
+            val todayCount = readPayments().count { payment ->
+                payment.createdAt.startsWith(dateLabel()) && payment.status != PaymentStatus.COMPLETED && payment.status != PaymentStatus.CANCELLED && payment.status != PaymentStatus.REJECTED
+            }
+            if (todayCount >= 3) {
+                Log.e("REDEEM_TRACE", "STEP_08A_CHECK daily_limit: todayCount=$todayCount")
+                errors += "Daily redeem limit reached."
+            }
+            val monthCount = readPayments().count { payment ->
+                payment.createdAt.startsWith(monthLabel()) && payment.status != PaymentStatus.COMPLETED && payment.status != PaymentStatus.CANCELLED && payment.status != PaymentStatus.REJECTED
+            }
+            if (monthCount >= 10) {
+                Log.e("REDEEM_TRACE", "STEP_08A_CHECK monthly_limit: monthCount=$monthCount")
+                errors += "Monthly redeem limit reached."
+            }
         }
-        val todayCount = readPayments().count { payment ->
-            payment.createdAt.startsWith(dateLabel()) && payment.status != PaymentStatus.COMPLETED && payment.status != PaymentStatus.CANCELLED && payment.status != PaymentStatus.REJECTED
-        }
-        if (todayCount >= 3) {
-            errors += "Daily redeem limit reached."
-        }
-        val monthCount = readPayments().count { payment ->
-            payment.createdAt.startsWith(monthLabel()) && payment.status != PaymentStatus.COMPLETED && payment.status != PaymentStatus.CANCELLED && payment.status != PaymentStatus.REJECTED
-        }
-        if (monthCount >= 10) {
-            errors += "Monthly redeem limit reached."
-        }
-        val budget = budgetRepository?.calculateBudget(snapshot) ?: MonthlyBudgetSnapshot()
-        val projectedLiability = budget.projection.outstandingLiability + rewardPack.rewardAmount.toFloat()
-        if (projectedLiability > budget.monthlyBudget.monthlyBudget.toFloat() * 1.1f) {
-            errors += "Monthly budget cannot support this payout."
+        if (!com.kryptoloot.app.BuildConfig.DEBUG) {
+            val budget = budgetRepository?.calculateBudget(snapshot) ?: MonthlyBudgetSnapshot()
+            val projectedLiability = budget.projection.outstandingLiability + rewardPack.rewardAmount.toFloat()
+            if (projectedLiability > budget.monthlyBudget.monthlyBudget.toFloat() * 1.1f) {
+                Log.e("REDEEM_TRACE", "STEP_08A_CHECK budget_exceeded: projected=$projectedLiability limit=${budget.monthlyBudget.monthlyBudget.toFloat() * 1.1f}")
+                errors += "Monthly budget cannot support this payout."
+            }
         }
         val message = if (errors.isEmpty()) "Validation successful." else errors.joinToString(separator = "; ")
+        Log.e("REDEEM_TRACE", "STEP_08A_RESULT isValid=${errors.isEmpty()} errorCount=${errors.size} message=$message")
         return PaymentValidation(
             isValid = errors.isEmpty(),
             errors = errors,
@@ -914,20 +987,32 @@ class RedeemPaymentRepository(
      */
     private suspend fun pollRemoteRedemptions() {
         try {
-            if (!isNetworkAvailable()) return
+            if (!isNetworkAvailable()) {
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions: no network, skipping")
+                return
+            }
             
             val deviceId = userRepo?.getDeviceId() ?: return
             val remoteRedemptions = try {
                 api.getRedemptions(deviceId)
             } catch (e: Exception) {
                 Log.e("RedeemPolling", "API call failed: ${e.message}")
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions: API call FAILED: ${e.message}")
                 return
             }
 
-            if (remoteRedemptions.isEmpty()) return
+            Log.d("SYNC_TRACE", "pollRemoteRedemptions: API returned ${remoteRedemptions.size} items")
+            if (remoteRedemptions.isEmpty()) {
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions: empty response, skipping")
+                return
+            }
+            remoteRedemptions.forEach { item ->
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions:   remote queue_id=${item.queue_id} status=${item.status} admin_reply='${item.admin_reply}'")
+            }
 
             // Merge remote data with local cache
             val localPayments = readPayments().toMutableList()
+            Log.d("SYNC_TRACE", "pollRemoteRedemptions: localPayments.size=${localPayments.size}")
             var hasChanges = false
 
             for (remoteItem in remoteRedemptions) {
@@ -940,6 +1025,7 @@ class RedeemPaymentRepository(
                     it.orderId == remoteItem.request_id.toString()
                 }
 
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions: matching remote='$remoteTransactionId' localIndex=$localIndex")
                 if (localIndex >= 0) {
                     val localPayment = localPayments[localIndex]
                     val newStatus = parsePaymentStatus(remoteItem.status)
@@ -963,14 +1049,18 @@ class RedeemPaymentRepository(
 
                         if (localPayment.status != newStatus) {
                             val title = when (newStatus) {
-                                PaymentStatus.APPROVED -> "Redeem processing"
-                                PaymentStatus.COMPLETED -> "Redeem completed"
-                                PaymentStatus.REJECTED -> "Redeem rejected"
-                                else -> "Redeem updated"
+                                PaymentStatus.APPROVED -> "Payment Processing"
+                                PaymentStatus.COMPLETED -> "Payment Completed"
+                                PaymentStatus.REJECTED -> "Payment Rejected"
+                                else -> "Redeem Updated"
                             }
                             val message = when (newStatus) {
-                                PaymentStatus.APPROVED -> "Your redeem is now being processed."
-                                PaymentStatus.COMPLETED -> "Your redeem completed successfully."
+                                PaymentStatus.APPROVED -> "Your payment is being processed."
+                                PaymentStatus.COMPLETED -> {
+                                    val adminMsg = remoteItem.admin_reply
+                                    if (!adminMsg.isNullOrBlank()) "Payment completed.\nAdmin Reply: $adminMsg"
+                                    else "Payment completed."
+                                }
                                 PaymentStatus.REJECTED -> "Your redeem was rejected."
                                 else -> "Your redeem status changed."
                             }
@@ -997,13 +1087,18 @@ class RedeemPaymentRepository(
                 }
             }
 
+            Log.d("SYNC_TRACE", "pollRemoteRedemptions: hasChanges=$hasChanges (${remoteRedemptions.size} remote items, ${localPayments.size} local payments)")
             if (hasChanges) {
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions: calling mergeRemoteRedemptions with ${remoteRedemptions.size} items")
                 persistPayments(localPayments)
                 userRepo?.mergeRemoteRedemptions(remoteRedemptions)
                 Log.d("RedeemPolling", "Local cache updated with ${localPayments.size} redemptions")
+            } else {
+                Log.d("SYNC_TRACE", "pollRemoteRedemptions: NO CHANGES detected, mergeRemoteRedemptions NOT called")
             }
         } catch (e: Exception) {
             Log.e("RedeemPolling", "Poll error: ${e.message}", e)
+            Log.d("SYNC_TRACE", "pollRemoteRedemptions: EXCEPTION ${e::class.simpleName}: ${e.message}")
         }
     }
 
@@ -1159,5 +1254,7 @@ data class PaymentSubmissionResult(
     val payment: RedeemPayment?,
     val validation: PaymentValidation,
     val success: Boolean,
-    val message: String
+    val message: String,
+    val backendRequestId: String? = null,
+    val backendTransactionId: String? = null
 )

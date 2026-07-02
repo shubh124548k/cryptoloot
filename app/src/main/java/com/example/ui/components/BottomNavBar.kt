@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
@@ -46,6 +47,7 @@ fun BottomNavBar(
         NavItemSpec("home", "Home", Icons.Filled.Home),
         NavItemSpec("watch_ad", "Watch", Icons.Filled.PlayCircle),
         NavItemSpec("coins", "Coins", Icons.Filled.Star),
+        NavItemSpec("history", "History", Icons.Filled.History),
         NavItemSpec("leaderboard", "Rank", Icons.Filled.Leaderboard),
         NavItemSpec("profile", "Profile", Icons.Filled.Person)
     )

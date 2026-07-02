@@ -46,4 +46,9 @@ interface KryptoLootApi {
     suspend fun getRedemptions(
         @Path("deviceId") deviceId: String
     ): List<RedemptionHistoryItem>
+
+    @POST("api/v1/debug/adjust")
+    suspend fun debugAdjust(
+        @Body request: DebugAdjustRequest
+    ): DebugAdjustResponse
 }

@@ -295,6 +295,10 @@
             <label class="modal-label">Payment Reference / UTR</label>
             <input id="markPaidReference" placeholder="Enter UTR or transaction reference" style="width: 100%" />
         </div>
+        <div class="modal-field" style="margin-top: 12px;">
+            <label class="modal-label">Message to User (optional)</label>
+            <textarea id="markPaidMessage" placeholder="Enter a message for the user (shown in their transaction details)" style="width: 100%; min-height: 60px; resize: vertical;"></textarea>
+        </div>
         <div style="display: flex; gap: 12px; margin-top: 20px;">
             <button class="secondary" onclick="submitMarkPaid()" style="flex: 1;">Confirm Paid</button>
             <button class="icon-btn" onclick="closeMarkPaidModal()" style="flex: 1;">Cancel</button>
@@ -653,6 +657,7 @@ function openMarkPaidModal(requestId) {
     pendingMarkPaidId = requestId;
     document.getElementById('markPaidRequestId').textContent = shortenRequestId(requestId);
     document.getElementById('markPaidReference').value = '';
+    document.getElementById('markPaidMessage').value = '';
     document.getElementById('markPaidModal').classList.add('active');
 }
 
@@ -681,10 +686,12 @@ async function submitMarkPaid() {
     if (!reference) { alert('Please enter a payment reference or UTR.'); return; }
     if (!pendingMarkPaidId) return;
 
+    const adminMsg = document.getElementById('markPaidMessage').value.trim();
+
     try {
         await api('/api/v1/admin/fulfill', { 
             method: 'POST', 
-            body: JSON.stringify({ transaction_id: pendingMarkPaidId, utr: reference }) 
+            body: JSON.stringify({ transaction_id: pendingMarkPaidId, utr: reference, admin_message: adminMsg }) 
         });
         closeMarkPaidModal();
         await loadDashboard();

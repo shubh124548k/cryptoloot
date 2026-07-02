@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.kryptoloot.app.BuildConfig
 import com.example.data.api.*
 import com.example.data.api.RedemptionHistoryItem
@@ -48,7 +49,6 @@ class UserRepository(
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val today = dateFormat.format(Date())
         prefs.resetDailyLimitIfNeeded(today)
-        applyDebugTestBalanceIfNeeded()
         emitSnapshot(createHandshakeResponseFromPrefs())
     }
 
@@ -58,6 +58,7 @@ class UserRepository(
 
     fun mergeRemoteRedemptions(remote: List<RedemptionHistoryItem>) {
         val existingTransactions = readTransactions()
+        Log.d("SYNC_TRACE", "mergeRemoteRedemptions: remote.size=${remote.size} existingTransactions.size=${existingTransactions.size}")
         val nonRedemptionTransactions = existingTransactions.filter {
             it.transactionType != TransactionType.REDEEM_REQUEST &&
                 it.transactionType != TransactionType.REDEEM_PROCESSING &&
@@ -65,8 +66,10 @@ class UserRepository(
                 it.transactionType != TransactionType.REDEEM_REJECTED &&
                 it.transactionType != TransactionType.QUEUE_COMPLETED
         }.toMutableList()
+        Log.d("SYNC_TRACE", "mergeRemoteRedemptions: nonRedemptionTransactions.size=${nonRedemptionTransactions.size} (after filtering out redemption types)")
 
         if (remote.isEmpty()) {
+            Log.d("SYNC_TRACE", "mergeRemoteRedemptions: WIPING all redemptions (remote is empty)! nonRedemption kept=${nonRedemptionTransactions.size}")
             val sortedTransactions = nonRedemptionTransactions.sortedByDescending { it.timestamp }
             prefs.transactionHistoryJson = transactionAdapter.toJson(sortedTransactions)
             transactionRepository?.refreshFromPreferences()
@@ -112,7 +115,8 @@ class UserRepository(
                 updatedAt = item.completed_at ?: item.created_at,
                 previousBalance = coinsBefore,
                 currentBalance = coinsAfter,
-                legacyDescription = item.description
+                legacyDescription = item.description,
+                adminReply = item.admin_reply
             )
         }
 
@@ -130,15 +134,18 @@ class UserRepository(
         }
 
         val sortedTransactions = mergedTransactions.sortedByDescending { it.timestamp }
+        val redemptionCount = sortedTransactions.count {
+            it.transactionType == TransactionType.QUEUE_COMPLETED || it.transactionType == TransactionType.REDEEM_REQUEST
+        }
+        Log.d("SYNC_TRACE", "mergeRemoteRedemptions: WRITING sortedTransactions.size=${sortedTransactions.size} (redemptionCount=$redemptionCount)")
+        sortedTransactions.filter {
+            it.transactionType == TransactionType.QUEUE_COMPLETED || it.transactionType == TransactionType.REDEEM_REQUEST
+        }.forEach { tx ->
+            Log.d("SYNC_TRACE", "mergeRemoteRedemptions:   tx queueId=${tx.queueId} status=${tx.status} type=${tx.transactionType.name} adminReply='${tx.adminReply}'")
+        }
         prefs.transactionHistoryJson = transactionAdapter.toJson(sortedTransactions)
         transactionRepository?.refreshFromPreferences()
         refreshFromPreferences()
-    }
-
-    private fun applyDebugTestBalanceIfNeeded() {
-        if (!BuildConfig.DEBUG || prefs.debugTestBalanceApplied) return
-        prefs.coinBalance = 300
-        prefs.debugTestBalanceApplied = true
     }
 
     fun attachRepositories(
@@ -193,11 +200,6 @@ class UserRepository(
     fun getLocalCoins(): Int = prefs.coinBalance
     fun getLocalTrustScore(): Int = prefs.trustScore
 
-    fun adjustCoins(amount: Int) {
-        prefs.coinBalance = (prefs.coinBalance + amount).coerceAtLeast(0)
-        refreshFromPreferences()
-    }
-
     fun getDisplayName(): String = prefs.displayName ?: "Krypton_Warrior"
     fun getPhotoUrl(): String? = prefs.photoUrl
 
@@ -242,6 +244,7 @@ class UserRepository(
             )
             response
         } catch (e: TimeoutCancellationException) {
+            Log.w("UserRepo", "Handshake timeout, falling back to local prefs")
             val fallbackUid = getMasterUid()
             emitSnapshot(
                 HandshakeResponse(
@@ -270,6 +273,7 @@ class UserRepository(
                 break_until = null
             )
         } catch (e: Exception) {
+            Log.e("UserRepo", "Handshake failed: ${e.message}", e)
             val fallbackUid = getMasterUid()
             emitSnapshot(
                 HandshakeResponse(
@@ -463,6 +467,18 @@ class UserRepository(
 
     private fun emitSnapshot(handshake: HandshakeResponse?) {
         val transactions = currentTransactions()
+        val redemptionTxCount = transactions.count {
+            it.transactionType == TransactionType.QUEUE_COMPLETED || it.transactionType == TransactionType.REDEEM_REQUEST
+        }
+        val previousTxCount = _appState.value.transactionHistory.count {
+            it.transactionType == TransactionType.QUEUE_COMPLETED || it.transactionType == TransactionType.REDEEM_REQUEST
+        }
+        Log.d("SYNC_TRACE", "emitSnapshot: currentTransactions() total=${transactions.size} redemptionTxCount=$redemptionTxCount previousRedemptionCount=$previousTxCount")
+        transactions.filter {
+            it.transactionType == TransactionType.QUEUE_COMPLETED || it.transactionType == TransactionType.REDEEM_REQUEST
+        }.forEach { tx ->
+            Log.d("SYNC_TRACE", "emitSnapshot:   tx queueId=${tx.queueId} type=${tx.transactionType.name} status=${tx.status} adminReply='${tx.adminReply}'")
+        }
         val redeemPayments = readRedeemPayments()
         val redeemRequests = deriveRedeemRequests(redeemPayments)
         val redeemStats = buildRedeemQueueStats(redeemPayments)
@@ -495,9 +511,13 @@ class UserRepository(
             displayName = prefs.displayName,
             photoUrl = prefs.photoUrl
         )
-        if (_appState.value == snapshot) {
+        val snapshotEqual = _appState.value == snapshot
+        Log.d("SYNC_TRACE", "emitSnapshot: EQUALITY CHECK _appState.value == snapshot? $snapshotEqual")
+        if (snapshotEqual) {
+            Log.d("SYNC_TRACE", "emitSnapshot: SKIPPING emission (snapshots equal)")
             return
         }
+        Log.d("SYNC_TRACE", "emitSnapshot: EMITTING new snapshot with $redemptionTxCount redemption transactions")
         _appState.value = snapshot
         rewardRepository?.refreshRewards(snapshot.coinBalance)
         leaderboardRepository?.refreshLeaderboard(snapshot)
