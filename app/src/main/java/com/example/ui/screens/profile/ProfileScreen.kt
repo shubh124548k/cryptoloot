@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.*
 import com.example.ui.theme.*
+import com.kryptoloot.app.BuildConfig
 
 @Composable
 fun ProfileScreen(
@@ -59,6 +60,9 @@ fun ProfileScreen(
     lastTransactionTime: String?,
     averageCoinsPerReward: Float,
     onRecoverUid: (String, (Boolean, String) -> Unit) -> Unit,
+    onAddCoins: (Int) -> Unit,
+    onResetRedeemData: () -> Unit,
+    onResetNotifications: () -> Unit,
     onResetApp: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -686,7 +690,78 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider(color = CardBorder)
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
+                if (BuildConfig.DEBUG) {
+                    Text(
+                        text = "DEBUG QA PANEL",
+                        color = NeonPink,
+                        fontSize = 12.sp,
+                        fontFamily = RajdhaniFamily,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.2.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    listOf(
+                        300 to "+300 Coins",
+                        700 to "+700 Coins",
+                        1500 to "+1500 Coins",
+                        7000 to "+7000 Coins"
+                    ).chunked(2).forEach { rowButtons ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            rowButtons.forEach { (amount, label) ->
+                                Button(
+                                    onClick = { onAddCoins(amount) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = NeonPurple,
+                                        contentColor = Color.White
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(text = label, fontSize = 12.sp, fontFamily = RajdhaniFamily)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = onResetRedeemData,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NeonOrange,
+                                contentColor = Color.Black
+                            ),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "Reset Redeem Data", fontSize = 12.sp, fontFamily = RajdhaniFamily)
+                        }
+                        Button(
+                            onClick = onResetNotifications,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NeonCyan,
+                                contentColor = Color.Black
+                            ),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "Reset Notifications", fontSize = 12.sp, fontFamily = RajdhaniFamily)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = CardBorder)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 // Clear Cache
                 Text(
                     text = "Clear Client Cache",

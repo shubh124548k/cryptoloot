@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
@@ -23,20 +24,115 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.repository.RewardPackCatalog
+import android.util.Log
+import com.example.data.repository.RedeemDeliveryType
 import com.example.ui.components.*
 import com.example.ui.theme.*
+
+@Composable
+private fun DeliveryMethodOptionCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 78.dp)
+            .shadow(
+                elevation = if (selected) 16.dp else 4.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = if (selected) NeonCyan.copy(alpha = 0.28f) else Color.Black.copy(alpha = 0.16f),
+                spotColor = if (selected) NeonCyan.copy(alpha = 0.28f) else Color.Black.copy(alpha = 0.16f)
+            )
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) NeonCyan else Color.White.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(16.dp)
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (selected) NeonCyan.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.02f),
+            contentColor = Color.White
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (selected) NeonCyan.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.06f),
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) NeonCyan else Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontFamily = RajdhaniFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.74f),
+                    fontFamily = InterFamily,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    softWrap = true,
+                    lineHeight = 14.sp
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun CoinsScreen(
@@ -45,6 +141,15 @@ fun CoinsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    
+    // Start polling for redemption status updates when screen is shown
+    // Stop when screen is dismissed
+    DisposableEffect(Unit) {
+        viewModel.startRedemptionPolling()
+        onDispose {
+            viewModel.stopRedemptionPolling()
+        }
+    }
     
     Box(
         modifier = modifier
@@ -124,7 +229,10 @@ fun CoinsScreen(
                         else -> "PROCESSING"
                     },
                     actionEnabled = uiState.activeRedeemStatus == null,
-                    onRedeem = { viewModel.openConfirmDialog(pack.requiredCoins, pack.rewardAmount.toFloat(), pack) },
+                    onRedeem = {
+                        Log.d("TRACE", "BUTTON_CLICK CoinsScreen.onRedeem selectedPack=${pack.name} selectedCoins=${pack.requiredCoins}")
+                        viewModel.openConfirmDialog(pack.requiredCoins, pack.rewardAmount.toFloat(), pack)
+                    },
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
@@ -408,6 +516,7 @@ fun CoinsScreen(
         
         // Confirmation Dialog
         if (uiState.showConfirmDialog) {
+            Log.d("TRACE", "ConfirmDialog shown selectedCoins=${uiState.selectedCoins} selectedPayout=${uiState.selectedPayout}")
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -436,13 +545,105 @@ fun CoinsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         
                         Text(
-                            text = "Are you sure you want to redeem ${uiState.selectedCoins} coins for a ₹${String.format("%.2f", uiState.selectedPayout)} gift card payload?",
+                            text = "Are you sure you want to redeem ${uiState.selectedCoins} coins for a ₹${String.format("%.2f", uiState.selectedPayout)} payout?",
                             color = Color.White,
                             fontSize = 14.sp,
                             fontFamily = InterFamily,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        // Delivery method chooser
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            val selected = uiState.paymentDeliveryType
+                            DeliveryMethodOptionCard(
+                                title = "UPI ID",
+                                subtitle = "Receive payout via UPI",
+                                icon = Icons.Outlined.AccountBalanceWallet,
+                                selected = selected == RedeemDeliveryType.UPI,
+                                onClick = { viewModel.updatePaymentDestination(deliveryType = RedeemDeliveryType.UPI) }
+                            )
+                            DeliveryMethodOptionCard(
+                                title = "Mobile Number",
+                                subtitle = "Receive payout via mobile number",
+                                icon = Icons.Outlined.PhoneAndroid,
+                                selected = selected == RedeemDeliveryType.MOBILE,
+                                onClick = { viewModel.updatePaymentDestination(deliveryType = RedeemDeliveryType.MOBILE) }
+                            )
+                            DeliveryMethodOptionCard(
+                                title = "Redeem Code",
+                                subtitle = "Receive a game or platform redeem code",
+                                icon = Icons.Outlined.SportsEsports,
+                                selected = selected == RedeemDeliveryType.REDEEM_CODE,
+                                onClick = { viewModel.updatePaymentDestination(deliveryType = RedeemDeliveryType.REDEEM_CODE) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        when (uiState.paymentDeliveryType) {
+                            RedeemDeliveryType.UPI -> {
+                                OutlinedTextField(
+                                    value = uiState.paymentDestinationUpi,
+                                    onValueChange = { viewModel.updatePaymentDestination(upiId = it) },
+                                    label = { Text("UPI ID") },
+                                    placeholder = { Text("example@upi") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = NeonCyan,
+                                        focusedLabelColor = NeonCyan,
+                                        cursorColor = NeonCyan
+                                    ),
+                                    textStyle = LocalTextStyle.current.copy(color = Color.White)
+                                )
+                            }
+                            RedeemDeliveryType.MOBILE -> {
+                                OutlinedTextField(
+                                    value = uiState.paymentDestinationMobile,
+                                    onValueChange = { viewModel.updatePaymentDestination(mobileNumber = it) },
+                                    label = { Text("Mobile Number") },
+                                    placeholder = { Text("9876543210") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = NeonCyan,
+                                        focusedLabelColor = NeonCyan,
+                                        cursorColor = NeonCyan
+                                    ),
+                                    textStyle = LocalTextStyle.current.copy(color = Color.White)
+                                )
+                            }
+                            RedeemDeliveryType.REDEEM_CODE -> {
+                                OutlinedTextField(
+                                    value = uiState.paymentRedeemCode,
+                                    onValueChange = { viewModel.updatePaymentDestination(redeemCode = it) },
+                                    label = { Text("Game / Platform") },
+                                    placeholder = { Text("Example: Free Fire") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = NeonCyan,
+                                        focusedLabelColor = NeonCyan,
+                                        cursorColor = NeonCyan
+                                    ),
+                                    textStyle = LocalTextStyle.current.copy(color = Color.White)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        if (uiState.paymentErrorMessage != null) {
+                            Text(
+                                text = uiState.paymentErrorMessage.orEmpty(),
+                                color = NeonRed,
+                                fontSize = 12.sp,
+                                fontFamily = InterFamily,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(18.dp))
                         
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -456,7 +657,10 @@ fun CoinsScreen(
                             }
                             NeonButton(
                                 text = "CONFIRM ⚡",
-                                onClick = { viewModel.executeRedemption() },
+                                onClick = {
+                                    Log.d("TRACE", "BUTTON_CLICK CoinsScreen confirm button")
+                                    viewModel.executeRedemption()
+                                },
                                 modifier = Modifier.weight(1.5f)
                             )
                         }
@@ -518,8 +722,9 @@ fun CoinsScreen(
                             text = "Request ID: #${uiState.createdRequestId}",
                             color = Color.White,
                             fontFamily = JetBrainsMonoFamily,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
                         
                         Spacer(modifier = Modifier.height(8.dp))

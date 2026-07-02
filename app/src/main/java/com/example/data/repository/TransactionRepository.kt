@@ -48,9 +48,45 @@ class TransactionRepository(
 
     fun insertTransaction(record: TransactionRecord): TransactionRecord {
         val current = readTransactions().toMutableList()
-        val existing = current.firstOrNull { it.id == record.id }
-        if (existing != null) {
-            return existing
+        val indexById = current.indexOfFirst { it.id == record.id }
+        val indexByQueueId = if (indexById >= 0) indexById else record.queueId?.let { queueId ->
+            current.indexOfFirst { it.queueId == queueId }
+        } ?: -1
+
+        if (indexByQueueId >= 0) {
+            val existing = current[indexByQueueId]
+            val updated = existing.copy(
+                userUid = if (record.userUid.isNotEmpty()) record.userUid else existing.userUid,
+                username = if (record.username.isNotEmpty()) record.username else existing.username,
+                transactionType = record.transactionType,
+                type = if (record.type.isNotEmpty()) record.type else existing.type,
+                coinsBefore = record.coinsBefore,
+                amount = record.amount,
+                coinsChanged = record.coinsChanged,
+                coinsAfter = record.coinsAfter,
+                rewardPack = record.rewardPack ?: existing.rewardPack,
+                cashAmount = record.cashAmount ?: existing.cashAmount,
+                queueId = record.queueId ?: existing.queueId,
+                status = if (record.status.isNotEmpty()) record.status else existing.status,
+                description = if (record.description.isNotEmpty()) record.description else existing.description,
+                timestamp = if (record.timestamp.isNotEmpty()) record.timestamp else existing.timestamp,
+                completedTimestamp = record.completedTimestamp ?: existing.completedTimestamp,
+                deviceId = record.deviceId ?: existing.deviceId,
+                serverSyncFlag = record.serverSyncFlag,
+                versionNumber = record.versionNumber,
+                message = record.message ?: existing.message,
+                rewardName = record.rewardName ?: existing.rewardName,
+                rewardAmount = record.rewardAmount ?: existing.rewardAmount,
+                packId = record.packId ?: existing.packId,
+                updatedAt = record.updatedAt ?: existing.updatedAt,
+                action = if (record.action.isNotEmpty()) record.action else existing.action,
+                previousBalance = record.previousBalance ?: existing.previousBalance,
+                currentBalance = record.currentBalance ?: existing.currentBalance,
+                legacyDescription = record.legacyDescription ?: existing.legacyDescription
+            )
+            current[indexByQueueId] = updated
+            persistTransactions(current)
+            return updated
         }
         current.add(0, record)
         persistTransactions(current)

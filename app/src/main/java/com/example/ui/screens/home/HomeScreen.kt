@@ -118,7 +118,7 @@ fun HomeScreen(
                         )
                     }
                 }
-                
+
                 // Animated coin balance chip
                 CoinCounter(
                     coins = uiState.coinBalance,

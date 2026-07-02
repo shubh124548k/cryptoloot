@@ -3,12 +3,16 @@ package com.example.ui.screens.coins
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.api.RedemptionHistoryItem
+import com.example.data.repository.RedeemDeliveryType
+import com.example.data.repository.RedeemDestination
+import com.example.data.repository.RedeemPaymentRepository
+import com.example.data.repository.RedeemQueueEntry
 import com.example.data.repository.RewardPack
 import com.example.data.repository.RewardPackCatalog
-import com.example.data.repository.RedeemQueueEntry
 import com.example.data.repository.RewardsRepository
 import com.example.data.repository.UserRepository
 import kotlinx.coroutines.Job
+import android.util.Log
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,12 +39,18 @@ data class CoinsUiState(
     val activeRedeemStatus: String? = null,
     val activeQueuePosition: Int? = null,
     val estimatedQueueWait: String? = null,
-    val pendingRedeemCount: Int = 0
+    val pendingRedeemCount: Int = 0,
+    val paymentDestinationUpi: String = "",
+    val paymentDestinationMobile: String = "",
+    val paymentRedeemCode: String = "",
+    val paymentDeliveryType: RedeemDeliveryType = RedeemDeliveryType.UPI,
+    val paymentErrorMessage: String? = null
 )
 
 class CoinsViewModel(
     private val rewardsRepo: RewardsRepository,
-    private val userRepo: UserRepository
+    private val userRepo: UserRepository,
+    private val paymentRepo: RedeemPaymentRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CoinsUiState())
@@ -137,20 +147,44 @@ class CoinsViewModel(
     fun openConfirmDialog(coins: Int, payout: Float, pack: RewardPack? = null) {
         if (redeemJob?.isActive == true) return
         selectedPack = pack
+        Log.d("TRACE", "CoinsViewModel.openConfirmDialog selectedPack=${pack?.name} selectedCoins=$coins")
         _uiState.update {
             it.copy(
                 showConfirmDialog = true,
                 selectedCoins = coins,
-                selectedPayout = payout
+                selectedPayout = payout,
+                paymentErrorMessage = null,
+                paymentDestinationUpi = "",
+                paymentDestinationMobile = "",
+                paymentRedeemCode = "",
+                paymentDeliveryType = RedeemDeliveryType.UPI
             )
         }
     }
 
     fun closeConfirmDialog() {
-        _uiState.update { it.copy(showConfirmDialog = false) }
+        _uiState.update { it.copy(showConfirmDialog = false, paymentErrorMessage = null) }
+    }
+
+    fun updatePaymentDestination(
+        upiId: String? = null,
+        mobileNumber: String? = null,
+        redeemCode: String? = null,
+        deliveryType: RedeemDeliveryType? = null
+    ) {
+        _uiState.update {
+            it.copy(
+                paymentDestinationUpi = upiId ?: it.paymentDestinationUpi,
+                paymentDestinationMobile = mobileNumber ?: it.paymentDestinationMobile,
+                paymentRedeemCode = redeemCode ?: it.paymentRedeemCode,
+                paymentDeliveryType = deliveryType ?: it.paymentDeliveryType,
+                paymentErrorMessage = null
+            )
+        }
     }
 
     fun executeRedemption() {
+        Log.d("TRACE", "VIEWMODEL_START CoinsViewModel.executeRedemption")
         val coins = _uiState.value.selectedCoins
         if (coins <= 0 || redeemJob?.isActive == true) return
         val pack = selectedPack
@@ -159,36 +193,46 @@ class CoinsViewModel(
             return
         }
 
+        val destination = RedeemDestination(
+            upiId = _uiState.value.paymentDestinationUpi,
+            mobileNumber = _uiState.value.paymentDestinationMobile,
+            deliveryType = _uiState.value.paymentDeliveryType,
+            redeemCode = _uiState.value.paymentRedeemCode
+        )
+
         redeemJob?.cancel()
         _uiState.update { it.copy(isLoading = true, showConfirmDialog = false) }
         redeemJob = viewModelScope.launch {
+            Log.e("TRACE", "CoinsViewModel.executeRedemption selectedPack=${pack?.name} selectedCoins=$coins")
             try {
-                val response = withTimeoutOrNull(8000L) { rewardsRepo.redeemCoins(coins, pack) }
-                if (response == null) {
-                    _uiState.update {
-                        it.copy(
-                            ratesError = "Timed out while processing redemption request."
-                        )
-                    }
-                } else if (response.success) {
+                val paymentResult = paymentRepo.submitRedeem(destination, pack, coins)
+                Log.d("TRACE", "CoinsViewModel.executeRedemption paymentResult.success=${paymentResult.success} message=${paymentResult.message}")
+                Log.d("TRACE", "CoinsViewModel.executeRedemption paymentResult.payment?.transactionId=${paymentResult.payment?.transactionId}")
+                if (!paymentResult.success) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            redemptionSuccessMessage = response.message,
-                            createdRequestId = response.request_id,
-                            successStatus = response.status,
-                            coinBalance = userRepo.getLocalCoins()
+                            paymentErrorMessage = paymentResult.message,
+                            ratesError = paymentResult.message
                         )
                     }
-                    loadData()
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            ratesError = response.message
-                        )
-                    }
+                    return@launch
                 }
+
+                val successMessage = paymentResult.message
+                val status = if (paymentResult.success) "PENDING" else "REJECTED"
+                Log.d("TRACE", "CoinsViewModel.executeRedemption setting success state before backend confirmation? successMessage=$successMessage")
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        redemptionSuccessMessage = successMessage,
+                        createdRequestId = paymentResult.payment?.id?.filter { it.isDigit() }?.toIntOrNull(),
+                        successStatus = status,
+                        coinBalance = userRepo.getLocalCoins(),
+                        paymentErrorMessage = null
+                    )
+                }
+                loadData()
             } catch (e: TimeoutCancellationException) {
                 _uiState.update {
                     it.copy(
@@ -219,6 +263,25 @@ class CoinsViewModel(
     }
 
     fun clearError() {
-        _uiState.update { it.copy(ratesError = null) }
+        _uiState.update { it.copy(ratesError = null, paymentErrorMessage = null) }
+    }
+
+    // === POLLING SUPPORT ===
+    /**
+     * Start polling for redemption status updates
+     * Should be called when CoinsScreen (history) is displayed
+     */
+    fun startRedemptionPolling() {
+        Log.d("CoinsViewModel", "Starting redemption status polling")
+        paymentRepo.startStatusPolling()
+    }
+
+    /**
+     * Stop polling for redemption status updates  
+     * Should be called when CoinsScreen is closed
+     */
+    fun stopRedemptionPolling() {
+        Log.d("CoinsViewModel", "Stopping redemption status polling")
+        paymentRepo.stopStatusPolling()
     }
 }

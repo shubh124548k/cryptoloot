@@ -1,0 +1,20 @@
+{
+    "verify-device-001": {
+        "master_uid": "KL-ZJPW-PXNL",
+        "coin_balance": 8200,
+        "trust_score": 100,
+        "account_status": "ACTIVE",
+        "ads_today": 0,
+        "session_ads": 0,
+        "last_calendar_reset": "2026-06-30"
+    },
+    "2a06d22dada272ac": {
+        "master_uid": "KL-P8MO-Y14V",
+        "coin_balance": 0,
+        "trust_score": 100,
+        "account_status": "ACTIVE",
+        "ads_today": 0,
+        "session_ads": 0,
+        "last_calendar_reset": "2026-07-01"
+    }
+}

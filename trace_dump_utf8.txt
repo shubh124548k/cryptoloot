@@ -1,0 +1,49 @@
+﻿--------- beginning of main
+07-01 20:16:11.726 E/TRACE   (11389): A entered trySyncRedeem
+07-01 20:16:11.726 E/TRACE   (11389): B checking network
+07-01 20:16:11.731 E/TRACE   (11389): C networkAvailable=true
+07-01 20:16:12.008 E/TRACE   (11389): REQUEST START
+07-01 20:16:12.008 E/TRACE   (11389): REQUEST URL=http://192.168.1.2:5000/api/v1/rewards/redeem
+07-01 20:16:12.008 E/TRACE   (11389): REQUEST BODY={"device_id":"2a06d22dada272ac","coins_to_redeem":1500,"username":"Krypton_Warrior","reward_pack":"Gold Pack","coins":1500,"cash_amount":50.0,"payment_method":"redeem code","payment_details":"free fire"}
+07-01 20:16:12.009 E/TRACE   (11389): BASE_URL=http://192.168.1.2:5000/
+07-01 20:16:12.009 E/TRACE   (11389): REQUEST DEVICE_ID=2a06d22dada272ac
+07-01 20:16:12.009 E/TRACE   (11389): E calling api.redeem
+07-01 20:16:12.325 E/TRACE   (11389): NETWORK ERROR HttpException
+07-01 20:16:12.325 E/TRACE   (11389): HTTP status code=400
+07-01 20:16:12.325 E/TRACE   (11389): Failure message=BAD REQUEST
+07-01 20:16:12.328 E/TRACE   (11389): Exception stacktrace
+07-01 20:16:12.328 E/TRACE   (11389): retrofit2.HttpException: HTTP 400 BAD REQUEST
+07-01 20:16:12.328 E/TRACE   (11389): 	at retrofit2.KotlinExtensions$await$2$2.onResponse(KotlinExtensions.kt:53)
+07-01 20:16:12.328 E/TRACE   (11389): 	at retrofit2.OkHttpCall$1.onResponse(OkHttpCall.java:164)
+07-01 20:16:12.328 E/TRACE   (11389): 	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:519)
+07-01 20:16:12.328 E/TRACE   (11389): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1154)
+07-01 20:16:12.328 E/TRACE   (11389): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:652)
+07-01 20:16:12.328 E/TRACE   (11389): 	at java.lang.Thread.run(Thread.java:1564)
+07-01 20:16:12.328 E/TRACE   (11389): Timeout=false
+07-01 20:16:12.328 E/TRACE   (11389): IOException=false
+07-01 20:16:12.328 E/TRACE   (11389): UnknownHostException=false
+07-01 20:16:12.328 E/TRACE   (11389): ConnectException=false
+07-01 20:19:27.258 E/TRACE   (13783): REPOSITORY_START RedeemPaymentRepository.trySyncRedeem
+07-01 20:19:27.258 E/TRACE   (13783): B checking network
+07-01 20:19:27.260 E/TRACE   (13783): C networkAvailable=true
+07-01 20:19:27.311 E/TRACE   (13783): REQUEST START
+07-01 20:19:27.311 E/TRACE   (13783): REQUEST URL=http://192.168.1.2:5000/api/v1/rewards/redeem
+07-01 20:19:27.311 E/TRACE   (13783): REQUEST BODY={"device_id":"2a06d22dada272ac","coins_to_redeem":1500,"username":"Krypton_Warrior","reward_pack":"Gold Pack","coins":1500,"cash_amount":50.0,"payment_method":"redeem code","payment_details":"free fire"}
+07-01 20:19:27.311 E/TRACE   (13783): BASE_URL=http://192.168.1.2:5000/
+07-01 20:19:27.312 E/TRACE   (13783): REQUEST DEVICE_ID=2a06d22dada272ac
+07-01 20:19:27.312 E/TRACE   (13783): API_CALL_START RedeemPaymentRepository.trySyncRedeem
+07-01 20:19:27.401 E/TRACE   (13783): NETWORK ERROR HttpException
+07-01 20:19:27.401 E/TRACE   (13783): HTTP status code=400
+07-01 20:19:27.401 E/TRACE   (13783): Failure message=BAD REQUEST
+07-01 20:19:27.402 E/TRACE   (13783): Exception stacktrace
+07-01 20:19:27.402 E/TRACE   (13783): retrofit2.HttpException: HTTP 400 BAD REQUEST
+07-01 20:19:27.402 E/TRACE   (13783): 	at retrofit2.KotlinExtensions$await$2$2.onResponse(KotlinExtensions.kt:53)
+07-01 20:19:27.402 E/TRACE   (13783): 	at retrofit2.OkHttpCall$1.onResponse(OkHttpCall.java:164)
+07-01 20:19:27.402 E/TRACE   (13783): 	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:519)
+07-01 20:19:27.402 E/TRACE   (13783): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1154)
+07-01 20:19:27.402 E/TRACE   (13783): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:652)
+07-01 20:19:27.402 E/TRACE   (13783): 	at java.lang.Thread.run(Thread.java:1564)
+07-01 20:19:27.402 E/TRACE   (13783): Timeout=false
+07-01 20:19:27.402 E/TRACE   (13783): IOException=false
+07-01 20:19:27.402 E/TRACE   (13783): UnknownHostException=false
+07-01 20:19:27.402 E/TRACE   (13783): ConnectException=false

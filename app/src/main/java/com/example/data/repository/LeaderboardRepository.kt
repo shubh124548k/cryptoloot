@@ -69,7 +69,7 @@ class LeaderboardRepository(
             val weeklyScore = calculateWeeklyLeaderboardScoreInternal(snapshot)
             val currentLeague = leagueForScoreInternal(currentScore)
             val lastActivityAt = transactionStats.lastTransactionTime ?: snapshot.redeemStats.lastRedeemAt
-            val successfulRedeems = max(snapshot.redeemStats.totalLifetimeRedeems, snapshot.successfulRedeems)
+            val successfulRedeems = snapshot.successfulRedeems
 
             val currentEntry = LeaderboardEntry(
                 userUid = snapshot.userUid.ifEmpty { snapshot.masterUid ?: snapshot.deviceId },
@@ -194,7 +194,7 @@ class LeaderboardRepository(
             val activityBonus = (transactionStats.totalTransactions * 15) + (snapshot.totalAdsWatched * 5) + (snapshot.sessionAds * 2)
             return calculateLeaderboardScoreInternal(
                 totalCoinsEarned = transactionStats.coinsEarnedLifetime,
-                successfulRedeems = max(snapshot.redeemStats.totalLifetimeRedeems, snapshot.successfulRedeems),
+                successfulRedeems = snapshot.redeemStats.completedCount,
                 trustScore = snapshot.trustScore,
                 totalTransactions = transactionStats.totalTransactions,
                 activityBonus = activityBonus

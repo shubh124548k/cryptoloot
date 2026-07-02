@@ -1,7 +1,9 @@
 package com.example.data.repository
 
 import android.content.Context
+import com.kryptoloot.app.BuildConfig
 import com.example.data.api.*
+import com.example.data.api.RedemptionHistoryItem
 import com.example.data.local.DeviceUtils
 import com.example.data.local.UserPreferences
 import com.squareup.moshi.Moshi
@@ -25,11 +27,8 @@ class UserRepository(
     private val transactionAdapter = moshi.adapter<List<TransactionRecord>>(
         Types.newParameterizedType(List::class.java, TransactionRecord::class.java)
     )
-    private val redeemRequestAdapter = moshi.adapter<List<RedeemRequestRecord>>(
-        Types.newParameterizedType(List::class.java, RedeemRequestRecord::class.java)
-    )
-    private val redeemQueueAdapter = moshi.adapter<List<RedeemQueueEntry>>(
-        Types.newParameterizedType(List::class.java, RedeemQueueEntry::class.java)
+    private val redeemPaymentAdapter = moshi.adapter<List<RedeemPayment>>(
+        Types.newParameterizedType(List::class.java, RedeemPayment::class.java)
     )
 
     private val _appState = MutableStateFlow(AppSnapshot())
@@ -49,11 +48,97 @@ class UserRepository(
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val today = dateFormat.format(Date())
         prefs.resetDailyLimitIfNeeded(today)
+        applyDebugTestBalanceIfNeeded()
         emitSnapshot(createHandshakeResponseFromPrefs())
     }
 
     fun refreshFromPreferences() {
         emitSnapshot(createHandshakeResponseFromPrefs())
+    }
+
+    fun mergeRemoteRedemptions(remote: List<RedemptionHistoryItem>) {
+        val existingTransactions = readTransactions()
+        val nonRedemptionTransactions = existingTransactions.filter {
+            it.transactionType != TransactionType.REDEEM_REQUEST &&
+                it.transactionType != TransactionType.REDEEM_PROCESSING &&
+                it.transactionType != TransactionType.REDEEM_APPROVED &&
+                it.transactionType != TransactionType.REDEEM_REJECTED &&
+                it.transactionType != TransactionType.QUEUE_COMPLETED
+        }.toMutableList()
+
+        if (remote.isEmpty()) {
+            val sortedTransactions = nonRedemptionTransactions.sortedByDescending { it.timestamp }
+            prefs.transactionHistoryJson = transactionAdapter.toJson(sortedTransactions)
+            transactionRepository?.refreshFromPreferences()
+            refreshFromPreferences()
+            return
+        }
+
+        val mergedRedemptions = remote.map { item ->
+            val status = item.status.trim().uppercase()
+            val transactionType = when (status) {
+                "PENDING", "QUEUED", "PROCESSING" -> TransactionType.REDEEM_REQUEST
+                "APPROVED" -> TransactionType.REDEEM_APPROVED
+                "COMPLETED", "PAID" -> TransactionType.QUEUE_COMPLETED
+                "REJECTED" -> TransactionType.REDEEM_REJECTED
+                else -> TransactionType.REDEEM_REQUEST
+            }
+            val coinsBefore = item.coins_before.coerceAtLeast(0)
+            val coinsAfter = item.coins_after.coerceAtLeast(0)
+            TransactionRecord(
+                id = "txn-${item.request_id}-${item.queue_id ?: "0"}",
+                userUid = prefs.masterUid ?: getMasterUid(),
+                username = prefs.displayName ?: "Krypton_Warrior",
+                transactionType = transactionType,
+                type = transactionType.name,
+                coinsBefore = coinsBefore,
+                amount = item.coin_cost,
+                coinsChanged = -item.coin_cost,
+                coinsAfter = coinsAfter,
+                rewardPack = item.reward_name ?: item.transaction_type,
+                cashAmount = item.cash_amount ?: item.payout_value,
+                queueId = item.queue_id,
+                status = status,
+                description = item.description.ifEmpty { item.transaction_type },
+                timestamp = item.created_at,
+                completedTimestamp = item.completed_at,
+                deviceId = item.device_id,
+                serverSyncFlag = true,
+                versionNumber = item.version_number,
+                message = item.description.ifEmpty { "Redeem status: $status" },
+                rewardName = item.reward_name,
+                rewardAmount = item.cash_amount?.toInt() ?: item.payout_value.toInt(),
+                packId = item.queue_id?.toIntOrNull(),
+                updatedAt = item.completed_at ?: item.created_at,
+                previousBalance = coinsBefore,
+                currentBalance = coinsAfter,
+                legacyDescription = item.description
+            )
+        }
+
+        val mergedTransactions = nonRedemptionTransactions.toMutableList()
+        mergedRedemptions.sortedByDescending { it.timestamp }.forEach { redemption ->
+            val existingIndex = mergedTransactions.indexOfFirst {
+                it.queueId == redemption.queueId ||
+                    (it.id.filter { char -> char.isDigit() }.toIntOrNull() == redemption.id.filter { char -> char.isDigit() }.toIntOrNull())
+            }
+            if (existingIndex >= 0) {
+                mergedTransactions[existingIndex] = redemption
+            } else {
+                mergedTransactions.add(0, redemption)
+            }
+        }
+
+        val sortedTransactions = mergedTransactions.sortedByDescending { it.timestamp }
+        prefs.transactionHistoryJson = transactionAdapter.toJson(sortedTransactions)
+        transactionRepository?.refreshFromPreferences()
+        refreshFromPreferences()
+    }
+
+    private fun applyDebugTestBalanceIfNeeded() {
+        if (!BuildConfig.DEBUG || prefs.debugTestBalanceApplied) return
+        prefs.coinBalance = 300
+        prefs.debugTestBalanceApplied = true
     }
 
     fun attachRepositories(
@@ -107,6 +192,11 @@ class UserRepository(
     fun getDeviceId(): String = prefs.deviceId
     fun getLocalCoins(): Int = prefs.coinBalance
     fun getLocalTrustScore(): Int = prefs.trustScore
+
+    fun adjustCoins(amount: Int) {
+        prefs.coinBalance = (prefs.coinBalance + amount).coerceAtLeast(0)
+        refreshFromPreferences()
+    }
 
     fun getDisplayName(): String = prefs.displayName ?: "Krypton_Warrior"
     fun getPhotoUrl(): String? = prefs.photoUrl
@@ -307,74 +397,24 @@ class UserRepository(
 
     @Suppress("UNUSED_PARAMETER")
     fun applyRedemptionSuccess(requestId: Int, coins: Int, payoutValue: Float, status: String) {
-        val previousBalance = prefs.coinBalance
         val nextBalance = (prefs.coinBalance - coins).coerceAtLeast(0)
         prefs.coinBalance = nextBalance
-        prefs.successfulRedeems = (prefs.successfulRedeems + 1).coerceAtLeast(0)
         refreshFromPreferences()
     }
 
     fun addTransaction(record: TransactionRecord) {
         val current = readTransactions().toMutableList()
-        current.add(0, record)
+        val existingIndex = current.indexOfFirst { it.id == record.id || (record.queueId != null && it.queueId == record.queueId) }
+        if (existingIndex >= 0) {
+            current[existingIndex] = record
+        } else {
+            current.add(0, record)
+        }
         prefs.transactionHistoryJson = transactionAdapter.toJson(current)
         refreshFromPreferences()
     }
 
-    fun addRedeemRequest(record: RedeemRequestRecord) {
-        val current = readRedeemRequests().toMutableList()
-        current.add(0, record)
-        prefs.redeemRequestsJson = redeemRequestAdapter.toJson(current)
-        refreshFromPreferences()
-    }
-
-    fun addRedeemQueueEntry(entry: RedeemQueueEntry) {
-        val current = readRedeemQueue().toMutableList()
-        if (current.any { it.id == entry.id }) return
-        current.add(0, entry)
-        prefs.redeemQueueJson = redeemQueueAdapter.toJson(current)
-        refreshFromPreferences()
-    }
-
-    fun updateRedeemQueueStatus(
-        queueId: String,
-        status: String,
-        position: Int? = null,
-        estimatedWait: String? = null
-    ) {
-        val current = readRedeemQueue().toMutableList()
-        val index = current.indexOfFirst { it.id == queueId }
-        if (index < 0) return
-
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
-        val existing = current[index]
-        current[index] = existing.copy(
-            currentStatus = status,
-            processingPosition = position ?: existing.processingPosition,
-            estimatedProcessingTime = estimatedWait ?: existing.estimatedProcessingTime,
-            updatedAt = timestamp
-        )
-        prefs.redeemQueueJson = redeemQueueAdapter.toJson(current)
-        refreshFromPreferences()
-    }
-
-    fun finalizeRedeemQueue(queueId: String, finalStatus: String) {
-        updateRedeemQueueStatus(queueId, finalStatus)
-    }
-
-    fun getActiveRedeemQueueEntry(): RedeemQueueEntry? = readRedeemQueue().firstOrNull()
-
-    fun updateRedeemQueueEntry(entry: RedeemQueueEntry) {
-        val current = readRedeemQueue().toMutableList()
-        val index = current.indexOfFirst { it.id == entry.id }
-        if (index >= 0) {
-            current[index] = entry
-            prefs.redeemQueueJson = redeemQueueAdapter.toJson(current)
-            refreshFromPreferences()
-        }
-    }
-
-    fun getRedeemQueue(): List<RedeemQueueEntry> = readRedeemQueue()
+    fun getRedeemQueue(): List<RedeemQueueEntry> = deriveRedeemQueueEntries(readRedeemPayments())
 
     fun updateNotificationCount(count: Int) {
         prefs.notificationCount = count
@@ -389,12 +429,9 @@ class UserRepository(
         prefs.sessionAds = 0
         prefs.trustScore = 100
         prefs.totalAdsWatched = 0
-        prefs.successfulRedeems = 0
         prefs.notificationCount = 0
         prefs.totalCoinsEarned = 0
         prefs.transactionHistoryJson = null
-        prefs.redeemRequestsJson = null
-        prefs.redeemQueueJson = null
         prefs.masterUid = null
         prefs.displayName = "Krypton_Warrior"
         prefs.photoUrl = null
@@ -426,9 +463,9 @@ class UserRepository(
 
     private fun emitSnapshot(handshake: HandshakeResponse?) {
         val transactions = currentTransactions()
-        val redeemRequests = readRedeemRequests()
-        val redeemQueue = readRedeemQueue()
-        val redeemStats = buildRedeemQueueStats(redeemQueue)
+        val redeemPayments = readRedeemPayments()
+        val redeemRequests = deriveRedeemRequests(redeemPayments)
+        val redeemStats = buildRedeemQueueStats(redeemPayments)
         val transactionStats = buildTransactionStatistics(transactions)
         val leaderboardState = leaderboardRepository?.leaderboardState?.value ?: LeaderboardState()
         val snapshot = AppSnapshot(
@@ -437,10 +474,11 @@ class UserRepository(
             coinBalance = prefs.coinBalance,
             totalAdsWatched = prefs.totalAdsWatched,
             dailyAdsWatched = prefs.adsWatchedToday,
-            successfulRedeems = prefs.successfulRedeems,
+            successfulRedeems = redeemPayments.count { it.status == PaymentStatus.COMPLETED },
             transactionHistory = transactions,
             redeemRequests = redeemRequests,
             redeemStats = redeemStats,
+            redeemPayments = redeemPayments,
             transactionStats = transactionStats,
             leaderboardState = leaderboardState,
             trustScore = prefs.trustScore,
@@ -477,24 +515,70 @@ class UserRepository(
         }
     }
 
-    private fun readRedeemRequests(): List<RedeemRequestRecord> {
-        val json = prefs.redeemRequestsJson.orEmpty()
+    private fun readRedeemPayments(): List<RedeemPayment> {
+        val json = prefs.redeemPaymentsJson.orEmpty()
         if (json.isEmpty()) return emptyList()
         return try {
-            redeemRequestAdapter.fromJson(json) ?: emptyList()
+            redeemPaymentAdapter.fromJson(json) ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
     }
 
-    private fun readRedeemQueue(): List<RedeemQueueEntry> {
-        val json = prefs.redeemQueueJson.orEmpty()
-        if (json.isEmpty()) return emptyList()
-        return try {
-            redeemQueueAdapter.fromJson(json) ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
+    private fun deriveRedeemRequests(payments: List<RedeemPayment>): List<RedeemRequestRecord> {
+        val activeQueue = payments.filter {
+            it.status == PaymentStatus.PENDING || it.status == PaymentStatus.APPROVED
+        }.sortedByDescending { it.createdAt }
+
+        return payments.map { payment ->
+            val queuePosition = activeQueue.indexOfFirst { it.id == payment.id }.let { if (it >= 0) it + 1 else 0 }
+            RedeemRequestRecord(
+                id = payment.id,
+                userUid = payment.userUid,
+                username = payment.username,
+                packId = payment.rewardPackId,
+                packName = payment.rewardPack,
+                coinsUsed = payment.coinsRequired,
+                rewardAmount = payment.cashAmount.toInt(),
+                status = payment.status.name,
+                queuePosition = queuePosition,
+                estimatedProcessingTime = when (payment.status) {
+                    PaymentStatus.PENDING -> "Processing now"
+                    PaymentStatus.APPROVED -> "Approved for payout"
+                    PaymentStatus.COMPLETED -> "Completed"
+                    PaymentStatus.REJECTED -> "Rejected"
+                    PaymentStatus.CANCELLED -> "Cancelled"
+                },
+                requestTimestamp = payment.createdAt,
+                createdAt = payment.createdAt,
+                updatedAt = payment.updatedAt
+            )
         }
+    }
+
+    private fun deriveRedeemQueueEntries(payments: List<RedeemPayment>): List<RedeemQueueEntry> {
+        return payments
+            .filter { it.status == PaymentStatus.PENDING || it.status == PaymentStatus.APPROVED }
+            .sortedByDescending { it.createdAt }
+            .mapIndexed { index, payment ->
+                RedeemQueueEntry(
+                    id = payment.id,
+                    userUid = payment.userUid,
+                    username = payment.username,
+                    packId = payment.rewardPackId,
+                    packName = payment.rewardPack,
+                    coinCost = payment.coinsRequired,
+                    rewardAmount = payment.cashAmount.toInt(),
+                    requestTimestamp = payment.createdAt,
+                    currentStatus = payment.status.name,
+                    processingPosition = index + 1,
+                    estimatedProcessingTime = if (index == 0) "Processing now" else "${index} queued ahead",
+                    previousBalance = prefs.coinBalance,
+                    currentBalance = prefs.coinBalance,
+                    createdAt = payment.createdAt,
+                    updatedAt = payment.updatedAt
+                )
+            }
     }
 
     private fun currentTransactions(): List<TransactionRecord> {
@@ -532,17 +616,28 @@ class UserRepository(
         )
     }
 
-    private fun buildRedeemQueueStats(queue: List<RedeemQueueEntry>): RedeemQueueStats {
-        val active = queue.firstOrNull()
+    private fun buildRedeemQueueStats(payments: List<RedeemPayment>): RedeemQueueStats {
+        val queueEntries = deriveRedeemQueueEntries(payments)
+        val active = queueEntries.firstOrNull()
+        val pending = payments.count { it.status == PaymentStatus.PENDING }
+        val approved = payments.count { it.status == PaymentStatus.APPROVED }
+        val completed = payments.count { it.status == PaymentStatus.COMPLETED }
+        val rejected = payments.count { it.status == PaymentStatus.REJECTED }
+        val cancelled = payments.count { it.status == PaymentStatus.CANCELLED }
+        val queued = queueEntries.size
+        val latestCompletedAt = payments
+            .filter { it.status == PaymentStatus.COMPLETED }
+            .maxByOrNull { it.updatedAt }
+            ?.updatedAt
         return RedeemQueueStats(
-            pendingCount = queue.count { it.currentStatus == "PENDING" },
-            queuedCount = queue.count { it.currentStatus == "QUEUED" },
-            underReviewCount = queue.count { it.currentStatus == "UNDER REVIEW" },
-            approvedCount = queue.count { it.currentStatus == "APPROVED" },
-            completedCount = queue.count { it.currentStatus == "COMPLETED" },
-            rejectedCount = queue.count { it.currentStatus == "REJECTED" },
-            totalLifetimeRedeems = prefs.successfulRedeems,
-            lastRedeemAt = active?.updatedAt,
+            pendingCount = pending,
+            queuedCount = queued,
+            underReviewCount = payments.count { it.status == PaymentStatus.PENDING && it.deliveryType != RedeemDeliveryType.REDEEM_CODE },
+            approvedCount = approved,
+            completedCount = completed,
+            rejectedCount = rejected + cancelled,
+            totalLifetimeRedeems = pending + completed + rejected + cancelled,
+            lastRedeemAt = latestCompletedAt ?: active?.updatedAt,
             activeQueueId = active?.id,
             activeQueuePosition = active?.processingPosition,
             activeStatus = active?.currentStatus,

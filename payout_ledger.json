@@ -1,0 +1,40 @@
+[
+    {
+        "transaction_id": "TXN-1782905430-FBX",
+        "device_id": "verify-device-001",
+        "master_uid": "KL-ZJPW-PXNL",
+        "tier_id": "3",
+        "coins": 1500,
+        "payout_value_rupees": 50,
+        "status": "COMPLETED",
+        "redeem_code": "PROCESSING_BY_ADMIN",
+        "payment_method": "UPI",
+        "upi_id": "test@upi",
+        "mobile_number": null,
+        "redeem_code_value": null,
+        "timestamp": "2026-07-01T17:00:30.299825+05:30",
+        "updated_at": "2026-07-01T17:00:53.516857+05:30",
+        "approved_by": "subhendugupta124548k",
+        "paid_by": "subhendugupta124548k",
+        "paid_time": "2026-07-01 17:00:53",
+        "completed_time": "2026-07-01 17:00:53",
+        "utr": "UTR-VALID-001"
+    },
+    {
+        "transaction_id": "TXN-1782920853-VAK",
+        "device_id": "verify-device-001",
+        "master_uid": "KL-ZJPW-PXNL",
+        "tier_id": "3",
+        "coins": 1500,
+        "payout_value_rupees": 50,
+        "status": "REJECTED",
+        "redeem_code": "PROCESSING_BY_ADMIN",
+        "payment_method": "UPI",
+        "upi_id": "test@upi",
+        "mobile_number": null,
+        "redeem_code_value": null,
+        "timestamp": "2026-07-01T21:17:33.357480+05:30",
+        "updated_at": "2026-07-01T21:29:01.189579+05:30",
+        "reject_reason": "use cheat"
+    }
+]

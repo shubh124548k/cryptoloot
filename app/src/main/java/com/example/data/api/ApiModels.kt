@@ -54,12 +54,19 @@ data class EconomyTier(
 
 data class RedeemRequest(
     val device_id: String,
-    val coins_to_redeem: Int
+    val coins_to_redeem: Int,
+    val username: String? = null,
+    val reward_pack: String? = null,
+    val coins: Int? = null,
+    val cash_amount: Float? = null,
+    val payment_method: String? = null,
+    val payment_details: String? = null
 )
 
 data class RedeemResponse(
     val success: Boolean,
     val request_id: Int,
+    val transaction_id: String,
     val coins_deducted: Int,
     val coins_remaining: Int,
     val payout_value: Float,

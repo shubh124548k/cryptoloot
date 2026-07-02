@@ -115,6 +115,7 @@ data class LeaderboardState(
 
 data class NotificationItem(
     val id: String,
+    val relatedId: String? = null,
     val type: String = NotificationType.GENERAL_INFORMATION.name,
     val title: String,
     val message: String,

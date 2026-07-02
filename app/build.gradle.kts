@@ -21,16 +21,24 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    buildConfigField("String", "BASE_URL", "\"https://api.kryptoloot.com/\"")
   }
 
-  // WE KEEP ONLY REVENUE-SAFE GENERATION PATHS HERE
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val keystoreFile = file(keystorePath)
+      if (keystoreFile.exists()) {
+        storeFile = keystoreFile
+        storePassword = System.getenv("STORE_PASSWORD")
+        keyAlias = "upload"
+        keyPassword = System.getenv("KEY_PASSWORD")
+      } else {
+        storeFile = null
+        storePassword = null
+        keyAlias = null
+        keyPassword = null
+      }
     }
   }
 
@@ -39,10 +47,15 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
+        signingConfigs.getByName("release")
+      } else {
+        signingConfigs.getByName("debug")
+      }
     }
     debug {
-      // 🔒 SIGNING CONFIG CEILING REMOVED FOR CLEAN UNBLOCKED APK COMPILATION
+      // Debug default uses the local development LAN backend. Emulator detection overrides this to 10.0.2.2.
+      buildConfigField("String", "BASE_URL", "\"http://192.168.1.2:5000/\"")
     }
   }
   compileOptions {

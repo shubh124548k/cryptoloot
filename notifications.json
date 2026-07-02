@@ -1,0 +1,52 @@
+[
+    {
+        "id": "notif-TXN-1782920853-VAK-rejected",
+        "request_id": "TXN-1782920853-VAK",
+        "title": "Redeem Rejected",
+        "message": "Request TXN-1782920853-VAK was rejected. use cheat",
+        "status": "REJECTED",
+        "reward_pack": "Pack 3",
+        "timestamp": "2026-07-01 21:29:01",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782920853-VAK-pending",
+        "request_id": "TXN-1782920853-VAK",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782920853-VAK is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Gold Pack",
+        "timestamp": "2026-07-01 21:17:33",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782905430-FBX-completed",
+        "request_id": "TXN-1782905430-FBX",
+        "title": "Payment Sent Successfully",
+        "message": "Request TXN-1782905430-FBX has been completed. Reference: UTR-VALID-001",
+        "status": "COMPLETED",
+        "reward_pack": "Pack 3",
+        "timestamp": "2026-07-01 17:00:53",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782905430-FBX-processing",
+        "request_id": "TXN-1782905430-FBX",
+        "title": "Payment Processing",
+        "message": "Request TXN-1782905430-FBX is being processed for payment.",
+        "status": "PROCESSING",
+        "reward_pack": "Pack 3",
+        "timestamp": "2026-07-01 17:00:53",
+        "is_read": false
+    },
+    {
+        "id": "notif-TXN-1782905430-FBX-pending",
+        "request_id": "TXN-1782905430-FBX",
+        "title": "Redeem Submitted",
+        "message": "Request TXN-1782905430-FBX is pending approval.",
+        "status": "PENDING",
+        "reward_pack": "Gold Pack",
+        "timestamp": "2026-07-01 17:00:30",
+        "is_read": false
+    }
+]

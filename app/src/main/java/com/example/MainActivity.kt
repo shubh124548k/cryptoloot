@@ -16,6 +16,7 @@ package com.example
  */
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -43,9 +45,13 @@ import com.example.data.api.NetworkClient
 import com.example.data.local.UserPreferences
 import com.example.data.repository.AdRepository
 import com.example.data.repository.CeoDashboardRepository
+import com.example.data.repository.FraudDetectionRepository
 import com.example.data.repository.LeaderboardRepository
+import com.example.data.repository.MonthlyBudgetRepository
 import com.example.data.repository.NotificationRepository
 import com.example.data.repository.PreferencesNotificationStorage
+import com.example.data.repository.PreferencesRedeemPaymentStorage
+import com.example.data.repository.RedeemPaymentRepository
 import com.example.data.repository.RewardRepository
 import com.example.data.repository.RewardsRepository
 import com.example.data.repository.SyncRepository
@@ -53,7 +59,6 @@ import com.example.data.repository.TransactionRepository
 import com.example.data.repository.UserRepository
 import com.example.ui.components.BottomNavBar
 import com.example.ui.components.threeDTiltEffect
-import com.example.ui.theme.KryptoLootTheme
 import com.example.ui.screens.coins.CoinsScreen
 import com.example.ui.screens.coins.CoinsViewModel
 import com.example.ui.screens.home.HomeScreen
@@ -63,23 +68,24 @@ import com.example.ui.screens.leaderboard.LeaderboardViewModel
 import com.example.ui.screens.profile.ProfileScreen
 import com.example.ui.screens.watchad.WatchAdScreen
 import com.example.ui.screens.watchad.WatchAdViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import androidx.lifecycle.lifecycleScope
+import com.example.ui.theme.KryptoLootTheme
 import com.startapp.sdk.adsbase.Ad
 import com.startapp.sdk.adsbase.StartAppAd
 import com.startapp.sdk.adsbase.StartAppSDK
 import com.startapp.sdk.adsbase.adlisteners.AdDisplayListener
 import com.startapp.sdk.adsbase.adlisteners.AdEventListener
 import com.startapp.sdk.adsbase.adlisteners.VideoListener
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private var rewardedAd: StartAppAd? = null
+    private var startAppSdkInitialized = false
     private var isAdLoading = false
     private var adLoadRetryCount = 0
     private var adRetryCooldownJob: Job? = null
@@ -113,9 +119,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        Log.e("ADS", "ADS STEP 1 - calling StartApp loadAd")
         val ad = StartAppAd(this)
         ad.loadAd(StartAppAd.AdMode.REWARDED_VIDEO, object : AdEventListener {
             override fun onReceiveAd(p0: Ad) {
+                Log.e("ADS", "ADS STEP 2 - onReceiveAd")
                 rewardedAd = ad
                 adLoadTimeoutJob?.cancel()
                 isAdLoading = false
@@ -126,6 +134,9 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onFailedToReceiveAd(p0: Ad?) {
+                Log.e("ADS", "ADS STEP 3 - onFailedToReceiveAd")
+                val errorMessage = p0?.toString() ?: "StartApp ad load failed"
+                Log.e("ADS", "ADS STEP 3 error=$errorMessage")
                 rewardedAd = null
                 adLoadTimeoutJob?.cancel()
                 isAdLoading = false
@@ -147,7 +158,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showRewardedAd(onRewardEarned: () -> Unit, onAdFailedToShow: (String) -> Unit) {
+        Log.e("ADS", "ADS STEP 4 - showRewardedAd called")
         val ad = rewardedAd ?: return onAdFailedToShow("No ads available. Please try again later.")
+        Log.e("ADS", "ADS STEP 5 rewardedAd=$ad")
         if (isRewardedAdReady(ad)) {
             var rewardHandled = false
             ad.setVideoListener(object : VideoListener {
@@ -185,9 +198,11 @@ class MainActivity : ComponentActivity() {
                 onAdFailedToShow("Ad failed to show")
             }
         } else if (_isAdRetryAvailable.value) {
+            Log.e("ADS", "ADS STEP 6 rewarded ad not ready")
             requestAdAfterDelay()
             onAdFailedToShow("No ads available. Please try again later.")
         } else {
+            Log.e("ADS", "ADS STEP 6 rewarded ad not ready")
             _adStateText.value = "No ads available. Please try again later."
             _isAdReady.value = false
             _isAdRetryAvailable.value = true
@@ -201,32 +216,49 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    private fun initializeStartAppSdk() {
+        if (startAppSdkInitialized) return
+        StartAppSDK.init(this, "206630331")
+        startAppSdkInitialized = true
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        // Initialize StartApp SDK
-        StartAppSDK.init(this, "205482155")
+        // Initialize StartApp SDK once before loading ads
+        initializeStartAppSdk()
         loadRewardedAd()
         
         // Setup direct constructor injection
+        // Initialize NetworkClient so DEBUG builds choose appropriate base URL for emulator vs device
+        NetworkClient.initialize(applicationContext)
         val prefs = UserPreferences(applicationContext)
         val api = NetworkClient.api
         val userRepo = UserRepository(applicationContext, api, prefs)
         val adRepo = AdRepository(api, prefs, userRepo)
-        val rewardsRepo = RewardsRepository(api, prefs, userRepo)
         val rewardRepo = RewardRepository(userRepo)
         val transactionRepo = TransactionRepository(prefs, userRepo)
         val leaderboardRepo = LeaderboardRepository(userRepo, prefs)
         val ceoDashboardRepo = CeoDashboardRepository(userRepo)
         val notificationRepo = NotificationRepository(PreferencesNotificationStorage(prefs))
+        val paymentRepo = RedeemPaymentRepository(
+            storage = PreferencesRedeemPaymentStorage(prefs),
+            api = api,
+            userRepo = userRepo,
+            notificationRepo = notificationRepo,
+            budgetRepository = MonthlyBudgetRepository(userRepo, transactionRepo, rewardRepo, leaderboardRepo),
+            fraudRepository = FraudDetectionRepository(userRepo),
+            transactionRepository = transactionRepo
+        )
+        val rewardsRepo = RewardsRepository(api, prefs, userRepo, paymentRepo)
         val syncRepo = SyncRepository(prefs, userRepo, rewardRepo, transactionRepo, leaderboardRepo, notificationRepo)
         userRepo.attachRepositories(rewardRepo, transactionRepo, leaderboardRepo, notificationRepo, syncRepo)
         
         // Instantiation of view models
         val homeViewModel = HomeViewModel(userRepo, adRepo)
         val watchAdViewModel = WatchAdViewModel(adRepo, userRepo)
-        val coinsViewModel = CoinsViewModel(rewardsRepo, userRepo)
+        val coinsViewModel = CoinsViewModel(rewardsRepo, userRepo, paymentRepo)
         val leaderboardViewModel = LeaderboardViewModel(leaderboardRepo, userRepo)
         val sharedAppViewModel = SharedAppViewModel(userRepo)
         
@@ -352,6 +384,18 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 }
                                             },
+                                            onAddCoins = { amount ->
+                                                userRepo.adjustCoins(amount)
+                                                Toast.makeText(applicationContext, "Added $amount coins", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onResetRedeemData = {
+                                                paymentRepo.clearAllPayments()
+                                                Toast.makeText(applicationContext, "Redeem data reset", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onResetNotifications = {
+                                                notificationRepo.clearAllNotifications()
+                                                Toast.makeText(applicationContext, "Notifications reset", Toast.LENGTH_SHORT).show()
+                                            },
                                             onResetApp = {
                                                 userRepo.resetState()
                                                 Toast.makeText(applicationContext, "App protocols reset!", Toast.LENGTH_SHORT).show()
@@ -365,7 +409,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                }
+
+                    
+                    }
             }
         }
     }

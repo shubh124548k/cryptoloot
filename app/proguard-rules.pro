@@ -12,6 +12,10 @@
 #   public *;
 #}
 
+# Start.io SDK rules
+-keep class com.startapp.** { *; }
+-dontwarn com.startapp.**
+
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
 #-keepattributes SourceFile,LineNumberTable

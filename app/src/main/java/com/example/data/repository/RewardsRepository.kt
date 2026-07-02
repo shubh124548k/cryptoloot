@@ -1,8 +1,10 @@
 package com.example.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.example.data.api.*
 import com.example.data.local.UserPreferences
+import com.example.data.local.DeviceUtils
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -16,12 +18,10 @@ import kotlinx.coroutines.withContext
 class RewardsRepository(
     private val api: KryptoLootApi,
     private val prefs: UserPreferences,
-    private val userRepo: UserRepository
+    private val userRepo: UserRepository,
+    private val redeemPaymentRepository: RedeemPaymentRepository? = null
 ) {
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
-    private val historyAdapter = moshi.adapter<List<RedemptionHistoryItem>>(
-        Types.newParameterizedType(List::class.java, RedemptionHistoryItem::class.java)
-    )
 
     suspend fun getEconomyRates(): EconomyTiersResponse {
         return try {
@@ -49,6 +49,7 @@ class RewardsRepository(
                 return@withContext RedeemResponse(
                     success = false,
                     request_id = 0,
+                    transaction_id = "",
                     coins_deducted = 0,
                     coins_remaining = currentBalance,
                     payout_value = 0f,
@@ -63,6 +64,7 @@ class RewardsRepository(
                 return@withContext RedeemResponse(
                     success = false,
                     request_id = 0,
+                    transaction_id = "",
                     coins_deducted = 0,
                     coins_remaining = currentBalance,
                     payout_value = 0f,
@@ -79,6 +81,7 @@ class RewardsRepository(
                 return@withContext RedeemResponse(
                     success = false,
                     request_id = activeRequest.id.filter { it.isDigit() }.toIntOrNull() ?: 0,
+                    transaction_id = "",
                     coins_deducted = 0,
                     coins_remaining = currentBalance,
                     payout_value = 0f,
@@ -89,126 +92,96 @@ class RewardsRepository(
                 )
             }
 
+            // Backend-first submission
             val payout = pack.rewardAmount.toFloat()
-            val requestId = (100000..999999).random()
-            val requestUuid = "REQ-${UUID.randomUUID().toString().take(8).uppercase(Locale.US)}"
-            val now = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
-            val queuePosition = queue.size + 1
-            val estimatedWait = if (queuePosition <= 1) "Processing now" else "${queuePosition - 1} queued ahead"
-            val previousBalance = currentBalance
+            try {
+                val req = RedeemRequest(
+                    device_id = deviceId,
+                    coins_to_redeem = coins,
+                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
+                    reward_pack = pack.id.toString(),
+                    coins = coins,
+                    cash_amount = payout,
+                    payment_method = "UPI",
+                    payment_details = ""
+                )
+                val adapter = moshi.adapter(RedeemRequest::class.java)
+                try { Log.d("TRACE", "RewardsRepository.redeemCoins RedeemRequest JSON: ${adapter.toJson(req)}") } catch (_: Exception) {}
+                val response = api.redeem(req)
+                if (response.success) {
+                    // Use backend as single source of truth
+                    prefs.coinBalance = response.coins_remaining
+                    userRepo.refreshFromPreferences()
+                    try {
+                        val remote = api.getRedemptions(deviceId)
+                        if (remote.isNotEmpty()) userRepo.mergeRemoteRedemptions(remote)
+                    } catch (_: Exception) { }
 
-            userRepo.applyRedemptionSuccess(requestId, coins, payout, "PENDING")
-            userRepo.recordTransaction(
-                TransactionRecord(
-                    id = "req-$requestId-request",
-                    userUid = userRepo.getCurrentSnapshot().userUid.ifEmpty { prefs.masterUid ?: deviceId },
-                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
-                    transactionType = TransactionType.REDEEM_REQUEST,
-                    type = TransactionType.REDEEM_REQUEST.name,
-                    coinsBefore = previousBalance,
-                    amount = coins,
-                    coinsChanged = -coins,
-                    coinsAfter = prefs.coinBalance,
-                    rewardPack = pack.name,
-                    cashAmount = payout,
-                    queueId = requestUuid,
-                    status = "QUEUED",
-                    description = "Redeem request submitted for ${pack.name}",
-                    timestamp = now,
-                    completedTimestamp = null,
-                    deviceId = deviceId,
-                    serverSyncFlag = false,
-                    versionNumber = 1,
-                    message = "Redeem request submitted for ${pack.name}",
-                    rewardName = pack.name,
-                    rewardAmount = pack.rewardAmount,
-                    packId = pack.id,
-                    updatedAt = now,
-                    previousBalance = previousBalance,
-                    currentBalance = prefs.coinBalance,
-                    legacyDescription = "Redeem request submitted for ${pack.name}"
-                )
-            )
-            userRepo.recordTransaction(
-                TransactionRecord(
-                    id = "req-$requestId-processing",
-                    userUid = userRepo.getCurrentSnapshot().userUid.ifEmpty { prefs.masterUid ?: deviceId },
-                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
-                    transactionType = TransactionType.REDEEM_PROCESSING,
-                    type = TransactionType.REDEEM_PROCESSING.name,
-                    coinsBefore = previousBalance,
-                    amount = coins,
-                    coinsChanged = -coins,
-                    coinsAfter = prefs.coinBalance,
-                    rewardPack = pack.name,
-                    cashAmount = payout,
-                    queueId = requestUuid,
-                    status = "UNDER REVIEW",
-                    description = "Redeem request is being processed for ${pack.name}",
-                    timestamp = now,
-                    completedTimestamp = null,
-                    deviceId = deviceId,
-                    serverSyncFlag = false,
-                    versionNumber = 1,
-                    message = "Redeem request is being processed",
-                    rewardName = pack.name,
-                    rewardAmount = pack.rewardAmount,
-                    packId = pack.id,
-                    updatedAt = now,
-                    previousBalance = previousBalance,
-                    currentBalance = prefs.coinBalance,
-                    legacyDescription = "Redeem request is being processed for ${pack.name}"
-                )
-            )
-            userRepo.addRedeemRequest(
-                RedeemRequestRecord(
-                    id = requestUuid,
-                    userUid = userRepo.getCurrentSnapshot().userUid.ifEmpty { prefs.masterUid ?: deviceId },
-                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
-                    packId = pack.id,
-                    packName = pack.name,
-                    coinsUsed = coins,
-                    rewardAmount = pack.rewardAmount,
-                    status = "PENDING",
-                    queuePosition = queuePosition,
-                    estimatedProcessingTime = estimatedWait,
-                    requestTimestamp = now,
-                    createdAt = now,
-                    updatedAt = now
-                )
-            )
-            userRepo.addRedeemQueueEntry(
-                RedeemQueueEntry(
-                    id = requestUuid,
-                    userUid = userRepo.getCurrentSnapshot().userUid.ifEmpty { prefs.masterUid ?: deviceId },
-                    username = userRepo.getCurrentSnapshot().displayName ?: prefs.displayName ?: "Krypton_Warrior",
-                    packId = pack.id,
-                    packName = pack.name,
-                    coinCost = coins,
-                    rewardAmount = pack.rewardAmount,
-                    requestTimestamp = now,
-                    currentStatus = "QUEUED",
-                    processingPosition = queuePosition,
-                    estimatedProcessingTime = estimatedWait,
-                    previousBalance = previousBalance,
-                    currentBalance = prefs.coinBalance,
-                    createdAt = now,
-                    updatedAt = now
-                )
-            )
-            saveRedemptionOffline(requestId, coins, payout, "PENDING", pack.name)
+                    return@withContext response
+                } else {
+                    return@withContext response
+                }
+            } catch (e: Exception) {
+                // If network is unavailable, persist a single offline request and retry later
+                val context = userRepo.context
+                val online = try { DeviceUtils.isOnline(context) } catch (_: Exception) { false }
+                if (!online) {
+                    // Prevent storing duplicates
+                    if (!prefs.offlineRedeemJson.isNullOrBlank()) {
+                        return@withContext RedeemResponse(
+                            success = false,
+                            request_id = 0,
+                            transaction_id = "",
+                            coins_deducted = 0,
+                            coins_remaining = prefs.coinBalance,
+                            payout_value = payout,
+                            currency = "INR",
+                            status = "PENDING",
+                            message = "An offline redeem is already pending. Will retry when online.",
+                            estimated_delivery = "Awaiting connectivity"
+                        )
+                    }
 
-            RedeemResponse(
-                success = true,
-                request_id = requestId,
-                coins_deducted = coins,
-                coins_remaining = prefs.coinBalance,
-                payout_value = payout,
-                currency = "INR",
-                status = "QUEUED",
-                message = "Redemption queued successfully. Your request is now being processed.",
-                estimated_delivery = estimatedWait
-            )
+                    val now = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+                    val offline = mapOf(
+                        "id" to "offline-${UUID.randomUUID().toString().take(8).uppercase(Locale.US)}",
+                        "pack_id" to pack.id,
+                        "coins" to coins,
+                        "payout" to payout,
+                        "created_at" to now
+                    )
+                    prefs.offlineRedeemJson = com.squareup.moshi.Moshi.Builder().add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build().adapter(Map::class.java).toJson(offline)
+
+                    // Deduct coins offline and refresh UI
+                    userRepo.deductCoinsOffline(coins)
+                    userRepo.refreshFromPreferences()
+
+                    return@withContext RedeemResponse(
+                        success = true,
+                        request_id = 0,
+                        transaction_id = "",
+                        coins_deducted = coins,
+                        coins_remaining = prefs.coinBalance,
+                        payout_value = payout,
+                        currency = "INR",
+                        status = "QUEUED",
+                        message = "Redeem queued offline. Will retry when connectivity returns.",
+                        estimated_delivery = "Awaiting connectivity"
+                    )
+                }
+                return@withContext RedeemResponse(
+                    success = false,
+                    request_id = 0,
+                    transaction_id = "",
+                    coins_deducted = 0,
+                    coins_remaining = prefs.coinBalance,
+                    payout_value = payout,
+                    currency = "INR",
+                    status = "ERROR",
+                    message = "Failed to submit redeem request: ${e.message}",
+                    estimated_delivery = ""
+                )
+            }
         }
     }
 
@@ -216,60 +189,11 @@ class RewardsRepository(
         val deviceId = prefs.deviceId
         return try {
             val remote = api.getRedemptions(deviceId)
-            if (remote.isNotEmpty()) {
-                saveHistoryToPrefs(remote)
-                remote
-            } else {
-                getOfflineHistory()
-            }
-        } catch (e: Exception) {
-            getOfflineHistory()
-        }
-    }
-
-    private fun getOfflineHistory(): List<RedemptionHistoryItem> {
-        val historyJson = userRepo.getLocalHistoryJson()
-        if (historyJson.isEmpty()) {
-            return emptyList()
-        }
-        return try {
-            historyAdapter.fromJson(historyJson) ?: emptyList()
+            userRepo.mergeRemoteRedemptions(remote)
+            remote
         } catch (e: Exception) {
             emptyList()
         }
     }
-
-    private fun saveHistoryToPrefs(list: List<RedemptionHistoryItem>) {
-        val json = historyAdapter.toJson(list)
-        userRepo.saveLocalHistoryJson(json)
-    }
-
-    private fun saveRedemptionOffline(reqId: Int, coins: Int, payout: Float, status: String, rewardName: String? = null) {
-        val current = getOfflineHistory().toMutableList()
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        val dateStr = dateFormat.format(Date())
-
-        current.add(
-            0,
-            RedemptionHistoryItem(
-                request_id = reqId,
-                coin_cost = coins,
-                payout_value = payout,
-                status = status,
-                code_value = if (status == "COMPLETED") "KL-${(1000..9999).random()}-${(1000..9999).random()}" else null,
-                created_at = dateStr
-            )
-        )
-        saveHistoryToPrefs(current)
-    }
 }
 
-fun UserRepository.getLocalHistoryJson(): String {
-    val sp = this.context.applicationContext.getSharedPreferences("kryptoloot_history", Context.MODE_PRIVATE)
-    return sp.getString("history_json", "") ?: ""
-}
-
-fun UserRepository.saveLocalHistoryJson(json: String) {
-    val sp = this.context.applicationContext.getSharedPreferences("kryptoloot_history", Context.MODE_PRIVATE)
-    sp.edit().putString("history_json", json).apply()
-}

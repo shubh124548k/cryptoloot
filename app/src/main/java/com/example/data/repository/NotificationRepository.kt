@@ -123,6 +123,11 @@ class NotificationRepository(
         emitSnapshot()
     }
 
+    fun clearAllNotifications() {
+        storage.writeNotifications(emptyList())
+        refreshFromPreferences()
+    }
+
     fun clearExpired() {
         val now = System.currentTimeMillis()
         val filtered = storage.readNotifications().filter { item ->
@@ -208,6 +213,7 @@ class NotificationRepository(
         }
         return NotificationItem(
             id = "notif-${System.currentTimeMillis()}-${snapshot.coinBalance}-${snapshot.trustScore}",
+            relatedId = null,
             title = title,
             message = message,
             timestamp = timestamp,

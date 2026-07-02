@@ -10,6 +10,7 @@ data class AppSnapshot(
     val transactionHistory: List<TransactionRecord> = emptyList(),
     val redeemRequests: List<RedeemRequestRecord> = emptyList(),
     val redeemStats: RedeemQueueStats = RedeemQueueStats(),
+    val redeemPayments: List<RedeemPayment> = emptyList(),
     val transactionStats: TransactionStatistics = TransactionStatistics(),
     val leaderboardState: LeaderboardState = LeaderboardState(),
     val trustScore: Int = 100,

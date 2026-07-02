@@ -19,15 +19,15 @@ class UserPreferences(private val context: Context) {
         private const val KEY_PHOTO_URL = "photo_url"
         private const val KEY_MASTER_UID = "master_uid"
         private const val KEY_TOTAL_ADS_WATCHED = "total_ads_watched"
-        private const val KEY_SUCCESSFUL_REDEEMS = "successful_redeems"
         private const val KEY_NOTIFICATION_COUNT = "notification_count"
         private const val KEY_TOTAL_COINS_EARNED = "total_coins_earned"
         private const val KEY_TRANSACTION_HISTORY_JSON = "transaction_history_json"
-        private const val KEY_REDEEM_REQUESTS_JSON = "redeem_requests_json"
-        private const val KEY_REDEEM_QUEUE_JSON = "redeem_queue_json"
         private const val KEY_LEADERBOARD_JSON = "leaderboard_json"
         private const val KEY_NOTIFICATIONS_JSON = "notifications_json"
         private const val KEY_SYNC_STATE_JSON = "sync_state_json"
+        private const val KEY_REDEEM_PAYMENTS_JSON = "redeem_payments_json"
+            private const val KEY_OFFLINE_REDEEM_JSON = "offline_redeem_json"
+        private const val KEY_DEBUG_TEST_BALANCE_APPLIED = "debug_test_balance_applied"
     }
 
     var masterUid: String?
@@ -46,6 +46,10 @@ class UserPreferences(private val context: Context) {
         get() = prefs.getInt(KEY_COIN_BALANCE, 0)
         set(value) = prefs.edit().putInt(KEY_COIN_BALANCE, value).apply()
 
+    var debugTestBalanceApplied: Boolean
+        get() = prefs.getBoolean(KEY_DEBUG_TEST_BALANCE_APPLIED, false)
+        set(value) = prefs.edit().putBoolean(KEY_DEBUG_TEST_BALANCE_APPLIED, value).apply()
+
     var adsWatchedToday: Int
         get() = prefs.getInt(KEY_ADS_WATCHED_TODAY, 0)
         set(value) = prefs.edit().putInt(KEY_ADS_WATCHED_TODAY, value).apply()
@@ -62,9 +66,6 @@ class UserPreferences(private val context: Context) {
         get() = prefs.getInt(KEY_TOTAL_ADS_WATCHED, 0)
         set(value) = prefs.edit().putInt(KEY_TOTAL_ADS_WATCHED, value).apply()
 
-    var successfulRedeems: Int
-        get() = prefs.getInt(KEY_SUCCESSFUL_REDEEMS, 0)
-        set(value) = prefs.edit().putInt(KEY_SUCCESSFUL_REDEEMS, value).apply()
 
     var notificationCount: Int
         get() = prefs.getInt(KEY_NOTIFICATION_COUNT, 0)
@@ -78,14 +79,6 @@ class UserPreferences(private val context: Context) {
         get() = prefs.getString(KEY_TRANSACTION_HISTORY_JSON, null)
         set(value) = prefs.edit().putString(KEY_TRANSACTION_HISTORY_JSON, value).apply()
 
-    var redeemRequestsJson: String?
-        get() = prefs.getString(KEY_REDEEM_REQUESTS_JSON, null)
-        set(value) = prefs.edit().putString(KEY_REDEEM_REQUESTS_JSON, value).apply()
-
-    var redeemQueueJson: String?
-        get() = prefs.getString(KEY_REDEEM_QUEUE_JSON, null)
-        set(value) = prefs.edit().putString(KEY_REDEEM_QUEUE_JSON, value).apply()
-
     var leaderboardJson: String?
         get() = prefs.getString(KEY_LEADERBOARD_JSON, null)
         set(value) = prefs.edit().putString(KEY_LEADERBOARD_JSON, value).apply()
@@ -97,6 +90,14 @@ class UserPreferences(private val context: Context) {
     var syncStateJson: String?
         get() = prefs.getString(KEY_SYNC_STATE_JSON, null)
         set(value) = prefs.edit().putString(KEY_SYNC_STATE_JSON, value).apply()
+
+    var redeemPaymentsJson: String?
+        get() = prefs.getString(KEY_REDEEM_PAYMENTS_JSON, null)
+        set(value) = prefs.edit().putString(KEY_REDEEM_PAYMENTS_JSON, value).apply()
+
+    var offlineRedeemJson: String?
+        get() = prefs.getString(KEY_OFFLINE_REDEEM_JSON, null)
+        set(value) = prefs.edit().putString(KEY_OFFLINE_REDEEM_JSON, value).apply()
 
     var lastAdTimestamp: Long
         get() = prefs.getLong(KEY_LAST_AD_TIMESTAMP, 0L)
